@@ -1,9 +1,9 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'StellarBounty',
-  description: 'Decentralized bounty marketplace for Stellar projects.',
+  title: "StellarBounty",
+  description: "Decentralized bounty marketplace on Stellar.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

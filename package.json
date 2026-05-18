@@ -2,28 +2,17 @@
   "name": "stellar-bounty",
   "private": true,
   "version": "0.1.0",
-  "description": "Decentralized bounty and task marketplace on Stellar.",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "apps/frontend",
+    "apps/backend"
   ],
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
-    "test": "turbo run test",
-    "clean": "rimraf .turbo node_modules apps/*/node_modules packages/*/node_modules"
+    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "dev:backend": "npm run dev --workspace=apps/backend",
+    "build": "npm run build --workspaces --if-present",
+    "install:all": "npm install"
   },
   "devDependencies": {
-    "@types/node": "^20.14.2",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "eslint": "^8.57.0",
-    "next": "14.2.5",
-    "npm-run-all": "^4.1.5",
-    "prettier": "^3.0.0",
-    "rimraf": "^5.0.1",
-    "turbo": "^1.11.0",
     "typescript": "^5.5.4"
   }
 }

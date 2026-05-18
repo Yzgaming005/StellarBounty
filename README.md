@@ -1,21 +1,78 @@
 # StellarBounty
 
-StellarBounty is a decentralized bounty and task marketplace built for the Stellar ecosystem.
+A decentralized bounty and task marketplace built on the Stellar network. Project owners post bounties funded with XLM; contributors claim and complete them; Soroban smart contracts handle escrow and payouts trustlessly.
 
-## Monorepo structure
+> **Status:** Early development — contributors welcome. Browse [open issues](https://github.com/BountyOnChain/StellarBounty/issues) to get started.
 
-- `apps/frontend` — Next.js marketplace UI and dashboards
-- `apps/backend` — NestJS API server for bounties, users, submissions
-- `apps/contracts` — Soroban smart contract workspace for escrow and payouts
-- `packages/ui` — shared React UI components
-- `packages/types` — shared TypeScript models and GraphQL types
-- `packages/utils` — common utilities and helpers
-- `packages/sdk` — Stellar transaction helpers, Freighter integration
-- `docs` — architecture, API specs, workflow docs
-- `infra` — container, CI, and deployment support
+## Structure
 
-## Getting started
+```
+apps/
+  frontend/   Next.js 14 · TypeScript · Tailwind CSS
+  backend/    NestJS · TypeScript · REST API
+  contracts/  Soroban smart contracts · Rust
+```
 
-1. Install dependencies: `npm install`
-2. Start development: `npm run dev`
-3. Use `gh` to create issue backlog with `scripts/create_github_issues.sh`
+## Prerequisites
+
+| Tool | Version |
+|------|---------|
+| Node.js | 20+ |
+| Rust + cargo | stable |
+| wasm32 target | `rustup target add wasm32-unknown-unknown` |
+| Stellar CLI | `cargo install --locked stellar-cli` |
+
+## Setup
+
+```bash
+# 1. Clone
+git clone https://github.com/BountyOnChain/StellarBounty.git
+cd StellarBounty
+
+# 2. Install JS dependencies (frontend + backend)
+npm install
+
+# 3. Copy env and fill in values
+cp .env.example .env
+```
+
+## Development
+
+```bash
+# Frontend — http://localhost:3000
+npm run dev:frontend
+
+# Backend — http://localhost:4000
+npm run dev:backend
+```
+
+## Contracts
+
+```bash
+cd apps/contracts
+
+# Build WASM
+cargo build --target wasm32-unknown-unknown --release
+
+# Run tests
+cargo test
+```
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Secret for signing JWTs |
+| `STELLAR_NETWORK` | `testnet` or `mainnet` |
+| `NEXT_PUBLIC_API_URL` | Backend URL used by the frontend |
+
+## Contributing
+
+1. Browse [open issues](https://github.com/BountyOnChain/StellarBounty/issues) — issues tagged [`good first issue`](https://github.com/BountyOnChain/StellarBounty/issues?q=is%3Aopen+label%3A%22good+first+issue%22) are a great starting point.
+2. Fork the repo and create a branch: `git checkout -b feat/your-feature`
+3. Make your changes and open a pull request referencing the issue.
+
+## License
+
+MIT

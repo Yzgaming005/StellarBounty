@@ -3,10 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
-    "start": "nest start",
-    "start:dev": "nest start --watch",
+    "dev": "nest start --watch",
     "build": "nest build",
-    "lint": "eslint "src/**/*.ts" --fix"
+    "start": "node dist/main",
+    "lint": "eslint \"src/**/*.ts\""
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -19,7 +19,6 @@
     "@nestjs/cli": "^10.0.0",
     "@nestjs/schematics": "^10.0.0",
     "@types/node": "^20.14.2",
-    "eslint": "^8.57.0",
     "typescript": "^5.5.4"
   }
 }

@@ -1,16 +1,23 @@
-node_modules
-.DS_Store
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# NestJS
+dist/
+
+# Rust / Soroban
+target/
+**/*.rs.bk
+
+# Env
 .env
 .env.local
 .env.*.local
-dist
-.next
-.idea
-.vscode
+
+# Misc
+.DS_Store
 *.log
-.turbo
-coverage
-**/target
-**/*.rs.bk
-__pycache__
-*.py[cod]
+coverage/
