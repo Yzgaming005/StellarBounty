@@ -9,6 +9,7 @@ pub enum BountyStatus {
     Funded,
     InProgress,
     UnderReview,
+    Disputed,
     Completed,
     Cancelled,
 }
@@ -18,12 +19,19 @@ pub struct EscrowContract;
 
 #[contractimpl]
 impl EscrowContract {
-    /// Initialize a bounty. Sets owner, amount, token address, and status to Created.
-    pub fn initialize(env: Env, owner: Address, amount: i128, token_address: Address) {
+    /// Initialize a bounty. Sets owner, amount, token address, arbitrator, and status to Created.
+    pub fn initialize(
+        env: Env,
+        owner: Address,
+        amount: i128,
+        token_address: Address,
+        arbitrator: Address,
+    ) {
         owner.require_auth();
         env.storage().instance().set(&symbol_short!("OWNER"), &owner);
         env.storage().instance().set(&symbol_short!("AMOUNT"), &amount);
         env.storage().instance().set(&symbol_short!("TOKEN"), &token_address);
+        env.storage().instance().set(&symbol_short!("ARBITRATR"), &arbitrator);
         env.storage()
             .instance()
             .set(&symbol_short!("STATUS"), &BountyStatus::Created);
@@ -110,6 +118,52 @@ impl EscrowContract {
             .set(&symbol_short!("STATUS"), &BountyStatus::Cancelled);
     }
 
+    /// Raise a dispute. Callable by owner or contributor when status is UnderReview.
+    /// Transitions UnderReview → Disputed.
+    pub fn dispute(env: Env, caller: Address) {
+        caller.require_auth();
+        Self::assert_status(&env, BountyStatus::UnderReview, "dispute requires UnderReview status");
+
+        let owner: Address = env.storage().instance().get(&symbol_short!("OWNER")).unwrap();
+        let contributor: Address = env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
+        assert!(
+            caller == owner || caller == contributor,
+            "only owner or contributor can dispute"
+        );
+
+        env.storage()
+            .instance()
+            .set(&symbol_short!("STATUS"), &BountyStatus::Disputed);
+
+        env.events().publish((symbol_short!("dispute"), caller), ());
+    }
+
+    /// Arbitrator resolves the dispute by choosing a winner.
+    /// Pays out to `winner` and transitions Disputed → Completed.
+    pub fn resolve(env: Env, arbitrator: Address, winner: Address) {
+        arbitrator.require_auth();
+        Self::assert_arbitrator(&env, &arbitrator);
+        Self::assert_status(&env, BountyStatus::Disputed, "resolve requires Disputed status");
+
+        let owner: Address = env.storage().instance().get(&symbol_short!("OWNER")).unwrap();
+        let contributor: Address = env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
+        assert!(
+            winner == owner || winner == contributor,
+            "winner must be owner or contributor"
+        );
+
+        let amount: i128 = env.storage().instance().get(&symbol_short!("AMOUNT")).unwrap();
+        let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
+        let token = token::Client::new(&env, &token_address);
+        token.transfer(&env.current_contract_address(), &winner, &amount);
+
+        env.storage()
+            .instance()
+            .set(&symbol_short!("STATUS"), &BountyStatus::Completed);
+
+        env.events().publish((symbol_short!("resolve"), winner), ());
+    }
+
     pub fn get_owner(env: Env) -> Address {
         env.storage().instance().get(&symbol_short!("OWNER")).unwrap()
     }
@@ -130,6 +184,10 @@ impl EscrowContract {
         env.storage().instance().get(&symbol_short!("TOKEN")).unwrap()
     }
 
+    pub fn get_arbitrator(env: Env) -> Address {
+        env.storage().instance().get(&symbol_short!("ARBITRATR")).unwrap()
+    }
+
     // --- helpers ---
 
     fn assert_owner(env: &Env, caller: &Address) {
@@ -140,6 +198,11 @@ impl EscrowContract {
     fn assert_contributor(env: &Env, caller: &Address) {
         let contributor: Address = env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
         assert!(caller == &contributor, "only contributor can call this");
+    }
+
+    fn assert_arbitrator(env: &Env, caller: &Address) {
+        let arbitrator: Address = env.storage().instance().get(&symbol_short!("ARBITRATR")).unwrap();
+        assert!(caller == &arbitrator, "only arbitrator can call this");
     }
 
     fn assert_status(env: &Env, expected: BountyStatus, msg: &'static str) {
@@ -157,7 +220,7 @@ mod tests {
         Address, Env,
     };
 
-    fn setup() -> (Env, EscrowContractClient<'static>, Address, Address, Address, i128) {
+    fn setup() -> (Env, EscrowContractClient<'static>, Address, Address, Address, Address, i128) {
         let env = Env::default();
         env.mock_all_auths();
 
@@ -170,6 +233,7 @@ mod tests {
         let client = EscrowContractClient::new(&env, &contract_id);
 
         let owner = Address::generate(&env);
+        let arbitrator = Address::generate(&env);
         let amount: i128 = 1000;
 
         token_admin_client.mint(&owner, &amount);
@@ -177,23 +241,35 @@ mod tests {
         let token_client = TokenClient::new(&env, &token_address);
         token_client.approve(&owner, &contract_id, &amount, &200);
 
-        (env, client, owner, token_address, contract_id, amount)
+        (env, client, owner, token_address, contract_id, arbitrator, amount)
+    }
+
+    fn setup_under_review(
+    ) -> (Env, EscrowContractClient<'static>, Address, Address, Address, Address, Address, i128) {
+        let (env, client, owner, token_address, contract_id, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+        client.fund(&owner);
+        let contributor = Address::generate(&env);
+        client.start_work(&contributor);
+        client.submit(&contributor);
+        (env, client, owner, token_address, contract_id, arbitrator, contributor, amount)
     }
 
     #[test]
     fn test_initialize_stores_fields() {
-        let (_, client, owner, token_address, _, amount) = setup();
-        client.initialize(&owner, &amount, &token_address);
+        let (_, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
         assert_eq!(client.get_owner(), owner);
         assert_eq!(client.get_amount(), amount);
         assert_eq!(client.get_token(), token_address);
+        assert_eq!(client.get_arbitrator(), arbitrator);
         assert_eq!(client.get_status(), BountyStatus::Created);
     }
 
     #[test]
     fn test_fund_transfers_tokens_and_transitions() {
-        let (env, client, owner, token_address, contract_id, amount) = setup();
-        client.initialize(&owner, &amount, &token_address);
+        let (env, client, owner, token_address, contract_id, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
 
         let token = TokenClient::new(&env, &token_address);
         assert_eq!(token.balance(&owner), amount);
@@ -207,13 +283,8 @@ mod tests {
 
     #[test]
     fn test_approve_pays_contributor() {
-        let (env, client, owner, token_address, contract_id, amount) = setup();
-        client.initialize(&owner, &amount, &token_address);
-        client.fund(&owner);
-
-        let contributor = Address::generate(&env);
-        client.start_work(&contributor);
-        client.submit(&contributor);
+        let (env, client, owner, token_address, contract_id, arbitrator, contributor, amount) =
+            setup_under_review();
 
         let token = TokenClient::new(&env, &token_address);
         assert_eq!(token.balance(&contract_id), amount);
@@ -227,8 +298,8 @@ mod tests {
 
     #[test]
     fn test_cancel_from_funded_refunds_owner() {
-        let (env, client, owner, token_address, contract_id, amount) = setup();
-        client.initialize(&owner, &amount, &token_address);
+        let (env, client, owner, token_address, contract_id, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
 
         let token = TokenClient::new(&env, &token_address);
@@ -244,8 +315,8 @@ mod tests {
 
     #[test]
     fn test_cancel_from_created_no_transfer() {
-        let (env, client, owner, token_address, _, amount) = setup();
-        client.initialize(&owner, &amount, &token_address);
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
 
         let token = TokenClient::new(&env, &token_address);
         let owner_balance_before = token.balance(&owner);
@@ -258,8 +329,8 @@ mod tests {
 
     #[test]
     fn test_start_work_transitions_to_in_progress() {
-        let (env, client, owner, token_address, _, amount) = setup();
-        client.initialize(&owner, &amount, &token_address);
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
         let contributor = Address::generate(&env);
         client.start_work(&contributor);
@@ -269,8 +340,8 @@ mod tests {
 
     #[test]
     fn test_submit_transitions_to_under_review() {
-        let (env, client, owner, token_address, _, amount) = setup();
-        client.initialize(&owner, &amount, &token_address);
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
         let contributor = Address::generate(&env);
         client.start_work(&contributor);
@@ -279,14 +350,91 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "only owner can call this")]
-    fn test_approve_unauthorized_panics() {
-        let (env, client, owner, token_address, _, amount) = setup();
-        client.initialize(&owner, &amount, &token_address);
+    fn test_dispute_by_owner_transitions_to_disputed() {
+        let (_, client, owner, _, _, _, _, _) = setup_under_review();
+        client.dispute(&owner);
+        assert_eq!(client.get_status(), BountyStatus::Disputed);
+    }
+
+    #[test]
+    fn test_dispute_by_contributor_transitions_to_disputed() {
+        let (_, client, _, _, _, _, contributor, _) = setup_under_review();
+        client.dispute(&contributor);
+        assert_eq!(client.get_status(), BountyStatus::Disputed);
+    }
+
+    #[test]
+    fn test_resolve_pays_contributor_and_completes() {
+        let (env, client, _, token_address, contract_id, arbitrator, contributor, amount) =
+            setup_under_review();
+        client.dispute(&contributor);
+
+        let token = TokenClient::new(&env, &token_address);
+        assert_eq!(token.balance(&contract_id), amount);
+
+        client.resolve(&arbitrator, &contributor);
+
+        assert_eq!(client.get_status(), BountyStatus::Completed);
+        assert_eq!(token.balance(&contributor), amount);
+        assert_eq!(token.balance(&contract_id), 0);
+    }
+
+    #[test]
+    fn test_resolve_pays_owner_and_completes() {
+        let (env, client, owner, token_address, contract_id, arbitrator, contributor, amount) =
+            setup_under_review();
+        client.dispute(&contributor);
+
+        let token = TokenClient::new(&env, &token_address);
+        client.resolve(&arbitrator, &owner);
+
+        assert_eq!(client.get_status(), BountyStatus::Completed);
+        assert_eq!(token.balance(&owner), amount);
+        assert_eq!(token.balance(&contract_id), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "only owner or contributor can dispute")]
+    fn test_dispute_by_stranger_panics() {
+        let (env, client, _, _, _, _, _, _) = setup_under_review();
+        let stranger = Address::generate(&env);
+        client.dispute(&stranger);
+    }
+
+    #[test]
+    #[should_panic(expected = "dispute requires UnderReview status")]
+    fn test_dispute_wrong_status_panics() {
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
         let contributor = Address::generate(&env);
         client.start_work(&contributor);
-        client.submit(&contributor);
+        // Still InProgress, not UnderReview
+        client.dispute(&owner);
+    }
+
+    #[test]
+    #[should_panic(expected = "only arbitrator can call this")]
+    fn test_resolve_by_non_arbitrator_panics() {
+        let (env, client, _, _, _, _, contributor, _) = setup_under_review();
+        client.dispute(&contributor);
+        let stranger = Address::generate(&env);
+        client.resolve(&stranger, &contributor);
+    }
+
+    #[test]
+    #[should_panic(expected = "winner must be owner or contributor")]
+    fn test_resolve_with_invalid_winner_panics() {
+        let (env, client, _, _, _, arbitrator, contributor, _) = setup_under_review();
+        client.dispute(&contributor);
+        let stranger = Address::generate(&env);
+        client.resolve(&arbitrator, &stranger);
+    }
+
+    #[test]
+    #[should_panic(expected = "only owner can call this")]
+    fn test_approve_unauthorized_panics() {
+        let (env, client, _, _, _, _, _, _) = setup_under_review();
         let not_owner = Address::generate(&env);
         client.approve(&not_owner);
     }
@@ -294,8 +442,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "cancel only allowed from Created or Funded")]
     fn test_cancel_from_in_progress_panics() {
-        let (env, client, owner, token_address, _, amount) = setup();
-        client.initialize(&owner, &amount, &token_address);
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
         let contributor = Address::generate(&env);
         client.start_work(&contributor);
@@ -305,8 +453,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "fund requires Created status")]
     fn test_double_fund_panics() {
-        let (_, client, owner, token_address, _, amount) = setup();
-        client.initialize(&owner, &amount, &token_address);
+        let (_, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
         client.fund(&owner);
     }
