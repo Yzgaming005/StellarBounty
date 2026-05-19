@@ -166,7 +166,7 @@ mod tests {
         let token_address = token_id.address();
         let token_admin_client = StellarAssetClient::new(&env, &token_address);
 
-        let contract_id = env.register(EscrowContract, ());
+        let contract_id = env.register_contract(None, EscrowContract);
         let client = EscrowContractClient::new(&env, &contract_id);
 
         let owner = Address::generate(&env);
