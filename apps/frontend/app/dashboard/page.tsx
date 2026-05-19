@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useWallet } from "../../../components/WalletContext";
+import { useWallet } from "../../components/WalletContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
