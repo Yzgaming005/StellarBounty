@@ -87,7 +87,8 @@ impl EscrowContract {
 
         let amount: i128 = env.storage().instance().get(&symbol_short!("AMOUNT")).unwrap();
         let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
-        let contributor: Address = env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
+        let contributor: Address =
+            env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
         let token = token::Client::new(&env, &token_address);
         token.transfer(&env.current_contract_address(), &contributor, &amount);
 
@@ -100,7 +101,8 @@ impl EscrowContract {
     pub fn cancel(env: Env, owner: Address) {
         owner.require_auth();
         Self::assert_owner(&env, &owner);
-        let status: BountyStatus = env.storage().instance().get(&symbol_short!("STATUS")).unwrap();
+        let status: BountyStatus =
+            env.storage().instance().get(&symbol_short!("STATUS")).unwrap();
         assert!(
             status == BountyStatus::Created || status == BountyStatus::Funded,
             "cancel only allowed from Created or Funded"
@@ -108,7 +110,8 @@ impl EscrowContract {
 
         if status == BountyStatus::Funded {
             let amount: i128 = env.storage().instance().get(&symbol_short!("AMOUNT")).unwrap();
-            let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
+            let token_address: Address =
+                env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
             let token = token::Client::new(&env, &token_address);
             token.transfer(&env.current_contract_address(), &owner, &amount);
         }
@@ -125,7 +128,8 @@ impl EscrowContract {
         Self::assert_status(&env, BountyStatus::UnderReview, "dispute requires UnderReview status");
 
         let owner: Address = env.storage().instance().get(&symbol_short!("OWNER")).unwrap();
-        let contributor: Address = env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
+        let contributor: Address =
+            env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
         assert!(
             caller == owner || caller == contributor,
             "only owner or contributor can dispute"
@@ -146,7 +150,8 @@ impl EscrowContract {
         Self::assert_status(&env, BountyStatus::Disputed, "resolve requires Disputed status");
 
         let owner: Address = env.storage().instance().get(&symbol_short!("OWNER")).unwrap();
-        let contributor: Address = env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
+        let contributor: Address =
+            env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
         assert!(
             winner == owner || winner == contributor,
             "winner must be owner or contributor"
@@ -196,17 +201,20 @@ impl EscrowContract {
     }
 
     fn assert_contributor(env: &Env, caller: &Address) {
-        let contributor: Address = env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
+        let contributor: Address =
+            env.storage().instance().get(&symbol_short!("CONTRIB")).unwrap();
         assert!(caller == &contributor, "only contributor can call this");
     }
 
     fn assert_arbitrator(env: &Env, caller: &Address) {
-        let arbitrator: Address = env.storage().instance().get(&symbol_short!("ARBITRATR")).unwrap();
+        let arbitrator: Address =
+            env.storage().instance().get(&symbol_short!("ARBITRATR")).unwrap();
         assert!(caller == &arbitrator, "only arbitrator can call this");
     }
 
     fn assert_status(env: &Env, expected: BountyStatus, msg: &'static str) {
-        let status: BountyStatus = env.storage().instance().get(&symbol_short!("STATUS")).unwrap();
+        let status: BountyStatus =
+            env.storage().instance().get(&symbol_short!("STATUS")).unwrap();
         assert!(status == expected, "{}", msg);
     }
 }
@@ -244,8 +252,16 @@ mod tests {
         (env, client, owner, token_address, contract_id, arbitrator, amount)
     }
 
-    fn setup_under_review(
-    ) -> (Env, EscrowContractClient<'static>, Address, Address, Address, Address, Address, i128) {
+    fn setup_under_review() -> (
+        Env,
+        EscrowContractClient<'static>,
+        Address,
+        Address,
+        Address,
+        Address,
+        Address,
+        i128,
+    ) {
         let (env, client, owner, token_address, contract_id, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
@@ -283,7 +299,7 @@ mod tests {
 
     #[test]
     fn test_approve_pays_contributor() {
-        let (env, client, owner, token_address, contract_id, arbitrator, contributor, amount) =
+        let (env, client, owner, token_address, contract_id, _arbitrator, contributor, amount) =
             setup_under_review();
 
         let token = TokenClient::new(&env, &token_address);
