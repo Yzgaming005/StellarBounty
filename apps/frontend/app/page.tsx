@@ -12,21 +12,26 @@ type ApiBounty = Partial<BountyCardData> & {
 
 async function getBounties(): Promise<BountyCardData[]> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-  const response = await fetch(`${apiUrl}/bounties`, { next: { revalidate } });
 
-  if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+  try {
+    const response = await fetch(`${apiUrl}/bounties`, { next: { revalidate } });
+
+    if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+      return [];
+    }
+
+    const bounties = (await response.json()) as ApiBounty[];
+
+    return bounties.map((bounty, index) => ({
+      id: bounty.id ?? bounty._id ?? index,
+      title: bounty.title ?? "Untitled bounty",
+      reward: bounty.reward ?? bounty.rewardAmount ?? bounty.amount ?? null,
+      deadline: bounty.deadline ?? bounty.dueDate ?? null,
+      status: bounty.status ?? "open",
+    }));
+  } catch {
     return [];
   }
-
-  const bounties = (await response.json()) as ApiBounty[];
-
-  return bounties.map((bounty, index) => ({
-    id: bounty.id ?? bounty._id ?? index,
-    title: bounty.title ?? "Untitled bounty",
-    reward: bounty.reward ?? bounty.rewardAmount ?? bounty.amount ?? null,
-    deadline: bounty.deadline ?? bounty.dueDate ?? null,
-    status: bounty.status ?? "open",
-  }));
 }
 
 export default async function Home() {
