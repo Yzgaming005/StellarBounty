@@ -30,6 +30,9 @@ export class Submission {
   @Column()
   link!: string;
 
+  @Column({ type: 'text', nullable: true })
+  notes!: string | null;
+
   @Column({ type: 'enum', enum: SubmissionStatus, default: SubmissionStatus.PENDING })
   status!: SubmissionStatus;
 
