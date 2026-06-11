@@ -10,7 +10,7 @@ export class HealthController {
 
   @ApiOperation({ summary: 'Service health check' })
   @Get()
-  getHealth(): HealthResponseDto {
+  getHealth(): Promise<HealthResponseDto> {
     return this.healthService.getHealth();
   }
 }
