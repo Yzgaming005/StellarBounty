@@ -32,5 +32,4 @@ export function setupSwagger(app: INestApplication): void {
     },
     customSiteTitle: 'StellarBounty API Docs',
   });
-
 }
