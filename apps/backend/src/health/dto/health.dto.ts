@@ -39,4 +39,12 @@ export class HealthResponseDto {
   @IsNumber()
   @Min(0)
   uptime!: number;
+
+  @ApiProperty({
+    description: 'Database connectivity status',
+    example: 'connected',
+    enum: ['connected', 'disconnected'],
+  })
+  @IsEnum(['connected', 'disconnected'])
+  database!: string;
 }
