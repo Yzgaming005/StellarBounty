@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { ChallengeQueryDto } from './dto/challenge-query.dto';
 
 class VerifyDto {
   address!: string;
@@ -12,8 +13,8 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Get('challenge')
-  getChallenge(@Query('address') address: string) {
-    return this.authService.getChallenge(address);
+  getChallenge(@Query() query: ChallengeQueryDto) {
+    return this.authService.getChallenge(query.address);
   }
 
   @Post('verify')
