@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Contract, rpc as StellarRpc } from '@stellar/stellar-sdk';
+import * as StellarSdk from '@stellar/stellar-sdk';
 import { Bounty, BountyStatus } from '../entities/bounty.entity';
 import { Submission, SubmissionStatus } from '../entities/submission.entity';
 import { CreateSubmissionDto } from './submissions.dto';
@@ -56,7 +56,7 @@ export class SubmissionsService {
     const submission = await this.submissionRepo.findOneBy({ id: subId, bountyId });
     if (!submission) throw new NotFoundException('Submission not found');
 
-    await this.callSorobanRelease(bountyId, submission.contributorAddress);
+    await this.callContractApprove(bountyId, ownerAddress);
 
     submission.status = SubmissionStatus.APPROVED;
     bounty.status = BountyStatus.COMPLETED;
@@ -76,24 +76,47 @@ export class SubmissionsService {
     return this.submissionRepo.save(submission);
   }
 
-  private async callSorobanRelease(bountyId: string, recipientAddress: string) {
-    const network = this.config.get<string>('STELLAR_NETWORK');
-    const contractId = this.config.get<string>('SOROBAN_CONTRACT_ID');
-    if (!contractId) return; // contract not configured — skip
+  private async callContractApprove(bountyId: string, ownerAddress: string): Promise<void> {
+    const contractId =
+      this.config.get<string>(`SOROBAN_CONTRACT_${bountyId.toUpperCase()}`) ??
+      this.config.get<string>('SOROBAN_CONTRACT_ID');
+    if (!contractId) return; // no contract configured — skip (dev/test mode)
 
+    const network = this.config.get<string>('STELLAR_NETWORK', 'testnet');
     const rpcUrl =
+      this.config.get<string>('STELLAR_RPC_URL') ??
+      (network === 'mainnet'
+        ? 'https://mainnet.stellar.validationcloud.io/v1/rpc'
+        : 'https://soroban-testnet.stellar.org');
+
+    const server = new StellarSdk.rpc.Server(rpcUrl);
+    const networkPassphrase =
       network === 'mainnet'
-        ? 'https://mainnet.stellar.validationcloud.io/v1/soroban/rpc'
-        : 'https://soroban-testnet.stellar.org';
+        ? StellarSdk.Networks.PUBLIC
+        : StellarSdk.Networks.TESTNET;
 
-    const server = new StellarRpc.Server(rpcUrl);
-    const contract = new Contract(contractId);
+    const account = await server.getAccount(ownerAddress);
 
-    // Build and simulate the release call (fire-and-forget; signing requires a funded keypair)
-    const op = contract.call('release', ...[]);
-    void Promise.resolve(op); // placeholder — real signing requires a server keypair from env
-    void server; // suppress unused warning
-    void recipientAddress;
-    void bountyId;
+    const contract = new StellarSdk.Contract(contractId);
+    const tx = new StellarSdk.TransactionBuilder(account, {
+      fee: StellarSdk.BASE_FEE,
+      networkPassphrase,
+    })
+      .addOperation(
+        contract.call('approve', StellarSdk.nativeToScVal(ownerAddress, { type: 'address' })),
+      )
+      .setTimeout(30)
+      .build();
+
+    const prepared = await server.prepareTransaction(tx);
+    // The backend signs only if a server-side signing key is configured.
+    const signingSecret = this.config.get<string>('STELLAR_SIGNING_SECRET');
+    if (signingSecret) {
+      const signingKeypair = StellarSdk.Keypair.fromSecret(signingSecret);
+      prepared.sign(signingKeypair);
+      await server.sendTransaction(prepared);
+    }
+    // If no signing secret, the transaction is prepared but not submitted —
+    // the client is expected to sign and submit it separately.
   }
 }
