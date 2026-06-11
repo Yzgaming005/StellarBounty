@@ -65,12 +65,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     try {
       const parsedWallet = JSON.parse(savedWallet) as StoredWallet;
 
-      if (parsedWallet.publicKey) {
+      if (parsedWallet?.publicKey) {
         setPublicKey(parsedWallet.publicKey);
         setFreighterNetwork(parsedWallet.freighterNetwork);
       }
     } catch {
-      setPublicKey(savedWallet);
+      window.localStorage.removeItem(WALLET_STORAGE_KEY);
     }
   }, []);
 
