@@ -12,9 +12,7 @@ import { Bounty } from './entities/bounty.entity';
 import { Submission } from './entities/submission.entity';
 import { InitSchema1747657200000 } from './migrations/1747657200000-InitSchema';
 import { LoggerMiddleware } from './common/middleware/logger.middleware';
-import { SubmissionsController } from './submissions.controller';
 import { SubmissionsModule } from './submissions/submissions.module';
-import { SubmissionsService } from './submissions.service';
 
 @Module({
   imports: [
@@ -43,8 +41,8 @@ import { SubmissionsService } from './submissions.service';
       }),
     }),
   ],
-  controllers: [AppController, BountiesController, SubmissionsController],
-  providers: [AppService, BountiesService, SubmissionsService],
+  controllers: [AppController, BountiesController],
+  providers: [AppService, BountiesService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
