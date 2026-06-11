@@ -54,6 +54,9 @@ jobs:
       - name: Lint
         run: npm run lint --workspace=apps/backend
 
+      - name: Test
+        run: npm run test --workspace=apps/backend
+
       - name: Build
         run: npm run build --workspace=apps/backend
 

@@ -23,6 +23,7 @@ export class InitSchema1747657200000 implements MigrationInterface {
         "bountyId" UUID NOT NULL REFERENCES bounties(id) ON DELETE CASCADE,
         "contributorAddress" VARCHAR NOT NULL,
         link VARCHAR NOT NULL,
+        notes TEXT,
         status submission_status_enum NOT NULL DEFAULT 'pending',
         "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now()
       );
