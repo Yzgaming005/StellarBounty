@@ -93,7 +93,6 @@ export class SubmissionsService {
         ? StellarSdk.Networks.PUBLIC
         : StellarSdk.Networks.TESTNET;
 
-    const ownerKeypair = StellarSdk.Keypair.fromPublicKey(ownerAddress);
     const account = await server.getAccount(ownerAddress);
 
     const contract = new StellarSdk.Contract(contractId);

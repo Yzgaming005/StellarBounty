@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { Contract, Networks, rpc as StellarRpc } from '@stellar/stellar-sdk';
+import { Contract, rpc as StellarRpc } from '@stellar/stellar-sdk';
 import { Bounty, BountyStatus } from '../entities/bounty.entity';
 import { Submission, SubmissionStatus } from '../entities/submission.entity';
 import { CreateSubmissionDto } from './submissions.dto';

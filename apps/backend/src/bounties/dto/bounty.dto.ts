@@ -19,7 +19,7 @@ export class CreateBountyDto {
   @IsNotEmpty()
   @MinLength(3)
   @MaxLength(200)
-  title: string;
+  title!: string;
 
   @ApiProperty({
     description: 'Detailed description of the bounty requirements',
@@ -29,7 +29,7 @@ export class CreateBountyDto {
   @IsNotEmpty()
   @MinLength(10)
   @MaxLength(5000)
-  description: string;
+  description!: string;
 
   @ApiProperty({
     description: 'Reward amount in XLM (1 XLM = 1 stroop = 0.0000001 XLM)',
@@ -37,7 +37,7 @@ export class CreateBountyDto {
   })
   @IsString()
   @IsNotEmpty()
-  reward: string;
+  reward!: string;
 
   @ApiPropertyOptional({
     description: 'Array of tags for categorization',
@@ -55,7 +55,7 @@ export class CreateBountyDto {
   })
   @IsDateString()
   @IsNotEmpty()
-  deadline: string;
+  deadline!: string;
 }
 
 export class UpdateBountyDto {
@@ -101,34 +101,34 @@ export class UpdateBountyDto {
 export class BountyResponseDto {
   @ApiProperty({ description: 'Unique identifier' })
   @IsString()
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Bounty title' })
   @IsString()
-  title: string;
+  title!: string;
 
   @ApiProperty({ description: 'Bounty description' })
   @IsString()
-  description: string;
+  description!: string;
 
   @ApiProperty({ description: 'Reward in XLM' })
   @IsString()
-  reward: string;
+  reward!: string;
 
   @ApiProperty({ description: 'Deadline date' })
   @IsString()
-  deadline: string;
+  deadline!: string;
 
   @ApiProperty({
     description: 'Current status',
     enum: ['open', 'closed', 'in_progress'],
   })
   @IsString()
-  status: string;
+  status!: string;
 
   @ApiProperty({ description: 'Owner wallet address' })
   @IsString()
-  ownerAddress: string;
+  ownerAddress!: string;
 
   @ApiPropertyOptional({ description: 'Tags', type: [String] })
   @IsOptional()
@@ -138,9 +138,9 @@ export class BountyResponseDto {
 
   @ApiProperty({ description: 'Creation timestamp' })
   @IsString()
-  createdAt: string;
+  createdAt!: string;
 
   @ApiProperty({ description: 'Last update timestamp' })
   @IsString()
-  updatedAt: string;
+  updatedAt!: string;
 }

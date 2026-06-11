@@ -8,14 +8,14 @@ export class HealthResponseDto {
     enum: ['ok', 'degraded', 'down'],
   })
   @IsEnum(['ok', 'degraded', 'down'])
-  status: string;
+  status!: string;
 
   @ApiProperty({
     description: 'Current server timestamp',
     example: '2025-05-19T12:00:00.000Z',
   })
   @IsString()
-  timestamp: string;
+  timestamp!: string;
 
   @ApiProperty({
     description: 'Environment',
@@ -23,14 +23,14 @@ export class HealthResponseDto {
     enum: ['development', 'staging', 'production'],
   })
   @IsEnum(['development', 'staging', 'production'])
-  environment: string;
+  environment!: string;
 
   @ApiProperty({
     description: 'Application version',
     example: '1.0.0',
   })
   @IsString()
-  version: string;
+  version!: string;
 
   @ApiProperty({
     description: 'Uptime in seconds',
@@ -38,5 +38,5 @@ export class HealthResponseDto {
   })
   @IsNumber()
   @Min(0)
-  uptime: number;
+  uptime!: number;
 }

@@ -16,7 +16,7 @@ export class CreateSubmissionDto {
   })
   @IsString()
   @IsNotEmpty()
-  bountyId: string;
+  bountyId!: string;
 
   @ApiProperty({
     description: 'Link to the submitted work (GitHub PR, demo URL, etc.)',
@@ -24,7 +24,7 @@ export class CreateSubmissionDto {
   })
   @IsUrl()
   @IsNotEmpty()
-  workLink: string;
+  workLink!: string;
 
   @ApiPropertyOptional({
     description: 'Additional notes or description of the submission',
@@ -44,25 +44,25 @@ export class UpdateSubmissionStatusDto {
     example: 'approved',
   })
   @IsEnum(['pending', 'approved', 'rejected'])
-  status: 'pending' | 'approved' | 'rejected';
+  status!: 'pending' | 'approved' | 'rejected';
 }
 
 export class SubmissionResponseDto {
   @ApiProperty({ description: 'Unique identifier' })
   @IsString()
-  id: string;
+  id!: string;
 
   @ApiProperty({ description: 'Bounty ID this submission belongs to' })
   @IsString()
-  bountyId: string;
+  bountyId!: string;
 
   @ApiProperty({ description: 'Submitter wallet address' })
   @IsString()
-  submitterAddress: string;
+  submitterAddress!: string;
 
   @ApiProperty({ description: 'Link to submitted work' })
   @IsString()
-  workLink: string;
+  workLink!: string;
 
   @ApiPropertyOptional({ description: 'Additional notes' })
   @IsOptional()
@@ -74,13 +74,13 @@ export class SubmissionResponseDto {
     enum: ['pending', 'approved', 'rejected'],
   })
   @IsString()
-  status: string;
+  status!: string;
 
   @ApiProperty({ description: 'Creation timestamp' })
   @IsString()
-  createdAt: string;
+  createdAt!: string;
 
   @ApiProperty({ description: 'Last update timestamp' })
   @IsString()
-  updatedAt: string;
+  updatedAt!: string;
 }

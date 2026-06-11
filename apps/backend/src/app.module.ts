@@ -5,12 +5,14 @@ import * as Joi from 'joi';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { HealthModule } from './health/health.module';
 import { BountiesController } from './bounties.controller';
 import { BountiesService } from './bounties.service';
 import { Bounty } from './entities/bounty.entity';
 import { Submission } from './entities/submission.entity';
 import { InitSchema1747657200000 } from './migrations/1747657200000-InitSchema';
 import { SubmissionsController } from './submissions.controller';
+import { SubmissionsModule } from './submissions/submissions.module';
 import { SubmissionsService } from './submissions.service';
 
 @Module({
@@ -26,6 +28,7 @@ import { SubmissionsService } from './submissions.service';
     }),
     AuthModule,
     SubmissionsModule,
+    HealthModule,
     TypeOrmModule.forFeature([Bounty]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
