@@ -15,7 +15,6 @@ import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { SubmissionsController } from './submissions.controller';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { SubmissionsService } from './submissions.service';
-import { SubmissionsModule } from './submissions/submissions.module';
 
 @Module({
   imports: [
