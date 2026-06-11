@@ -2,15 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signMessage } from "@stellar/freighter-api";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import MarkdownRenderer from "@/app/components/MarkdownRenderer";
 import { useWallet } from "@/components/WalletContext";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const TOKEN_STORAGE_KEY = "stellar-bounty.auth-token";
+import { useAuth } from "@/lib/api";
 
 const createBountySchema = z.object({
   title: z.string().trim().min(1, "Title is required."),
@@ -19,76 +16,28 @@ const createBountySchema = z.object({
     .string()
     .trim()
     .min(1, "Reward amount is required.")
-    .refine((value) => Number.isFinite(Number(value)) && Number(value) > 0, "Reward must be a positive number."),
+    .refine(
+      (value) => Number.isFinite(Number(value)) && Number(value) > 0,
+      "Reward must be a positive number."
+    ),
   deadline: z.string().min(1, "Deadline is required."),
 });
 
 type CreateBountyFormValues = z.infer<typeof createBountySchema>;
-
-type AuthTokenResponse = {
-  accessToken: string;
-};
 
 type CreateBountyResponse = {
   id: string;
 };
 
 function formatErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
+  if (error instanceof Error) return error.message;
   return "Unable to create bounty.";
-}
-
-async function getAccessToken(publicKey: string): Promise<string> {
-  const savedToken = window.localStorage.getItem(TOKEN_STORAGE_KEY);
-
-  if (savedToken) {
-    return savedToken;
-  }
-
-  const challengeResponse = await fetch(`${API_URL}/auth/challenge?address=${encodeURIComponent(publicKey)}`);
-  if (!challengeResponse.ok) {
-    throw new Error("Failed to request wallet challenge.");
-  }
-
-  const { nonce } = (await challengeResponse.json()) as { nonce?: string };
-  if (!nonce) {
-    throw new Error("Challenge response was missing a nonce.");
-  }
-
-  const signed = await signMessage(nonce, { address: publicKey });
-  if (signed.error || !signed.signedMessage) {
-    throw new Error(signed.error?.message || "Wallet signature was cancelled.");
-  }
-
-  const verifyResponse = await fetch(`${API_URL}/auth/verify`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      address: publicKey,
-      signature: signed.signedMessage,
-      nonce,
-    }),
-  });
-
-  if (!verifyResponse.ok) {
-    throw new Error("Wallet verification failed.");
-  }
-
-  const { accessToken } = (await verifyResponse.json()) as AuthTokenResponse;
-  if (!accessToken) {
-    throw new Error("Verification did not return an access token.");
-  }
-
-  window.localStorage.setItem(TOKEN_STORAGE_KEY, accessToken);
-  return accessToken;
 }
 
 export default function CreateBountyPage() {
   const router = useRouter();
   const { publicKey } = useWallet();
+  const { getToken, clearToken, apiUrl } = useAuth();
   const [activeTab, setActiveTab] = useState<"write" | "preview">("write");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -116,10 +65,7 @@ export default function CreateBountyPage() {
     }
   }, [publicKey, router]);
 
-  const fieldErrorClass = useMemo(
-    () => "mt-1 text-sm text-red-300",
-    [],
-  );
+  const fieldErrorClass = useMemo(() => "mt-1 text-sm text-red-300", []);
 
   const onSubmit = handleSubmit(async (values) => {
     if (!publicKey) {
@@ -130,8 +76,8 @@ export default function CreateBountyPage() {
     setSubmitError(null);
 
     try {
-      const accessToken = await getAccessToken(publicKey);
-      const response = await fetch(`${API_URL}/bounties`, {
+      const accessToken = await getToken(publicKey);
+      const response = await fetch(`${apiUrl}/bounties`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -147,8 +93,12 @@ export default function CreateBountyPage() {
       });
 
       if (!response.ok) {
-        const payload = await response.json().catch(() => null) as { message?: string | string[] } | null;
-        const message = Array.isArray(payload?.message) ? payload?.message.join(" ") : payload?.message;
+        const payload = (await response.json().catch(() => null)) as {
+          message?: string | string[];
+        } | null;
+        const message = Array.isArray(payload?.message)
+          ? payload.message.join(" ")
+          : payload?.message;
 
         if (message?.toLowerCase().includes("title")) {
           setError("title", { message });
@@ -167,9 +117,7 @@ export default function CreateBountyPage() {
           return;
         }
 
-        if (response.status === 401) {
-          window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-        }
+        if (response.status === 401) clearToken();
 
         throw new Error(message || "Unable to create bounty.");
       }
@@ -181,9 +129,7 @@ export default function CreateBountyPage() {
     }
   });
 
-  if (!publicKey) {
-    return null;
-  }
+  if (!publicKey) return null;
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -202,7 +148,7 @@ export default function CreateBountyPage() {
               className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
               placeholder="e.g. Build a bounty listing page"
             />
-            {errors.title ? <p className={fieldErrorClass}>{errors.title.message}</p> : null}
+            {errors.title && <p className={fieldErrorClass}>{errors.title.message}</p>}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -218,7 +164,7 @@ export default function CreateBountyPage() {
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
                 placeholder="e.g. 500"
               />
-              {errors.reward ? <p className={fieldErrorClass}>{errors.reward.message}</p> : null}
+              {errors.reward && <p className={fieldErrorClass}>{errors.reward.message}</p>}
             </div>
             <div>
               <label htmlFor="deadline" className="mb-1 block text-sm font-medium text-slate-300">
@@ -230,7 +176,7 @@ export default function CreateBountyPage() {
                 {...register("deadline")}
                 className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-500 focus:outline-none"
               />
-              {errors.deadline ? <p className={fieldErrorClass}>{errors.deadline.message}</p> : null}
+              {errors.deadline && <p className={fieldErrorClass}>{errors.deadline.message}</p>}
             </div>
           </div>
 
@@ -280,14 +226,16 @@ export default function CreateBountyPage() {
                 )}
               </div>
             )}
-            {errors.description ? <p className={fieldErrorClass}>{errors.description.message}</p> : null}
+            {errors.description && (
+              <p className={fieldErrorClass}>{errors.description.message}</p>
+            )}
           </div>
 
-          {submitError ? (
+          {submitError && (
             <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
               {submitError}
             </div>
-          ) : null}
+          )}
 
           <div className="flex justify-end">
             <button
