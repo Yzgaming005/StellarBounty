@@ -2,11 +2,31 @@ import type { Metadata } from "next";
 import { WalletProvider } from "../components/WalletContext";
 import { ToastProvider } from "../components/toast/ToastProvider";
 import Navbar from "./components/Navbar";
+import { absoluteUrl, defaultDescription, siteName, siteUrl } from "./seo";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "StellarBounty",
-  description: "Decentralized bounty marketplace on Stellar.",
+  metadataBase: siteUrl,
+  title: {
+    default: siteName,
+    template: `%s | ${siteName}`,
+  },
+  description: defaultDescription,
+  alternates: {
+    canonical: absoluteUrl(),
+  },
+  openGraph: {
+    title: siteName,
+    description: defaultDescription,
+    url: absoluteUrl(),
+    siteName,
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: siteName,
+    description: defaultDescription,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

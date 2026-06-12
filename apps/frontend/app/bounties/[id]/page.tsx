@@ -1,4 +1,6 @@
+import type { Metadata } from "next";
 import BountyDetailClient from "./BountyDetailClient";
+import { absoluteUrl, siteName } from "../../seo";
 
 type Bounty = {
   id: string;
@@ -17,6 +19,8 @@ type ApiBounty = Partial<Omit<Bounty, "reward" | "deadline">> & {
   deadline?: string | null;
   dueDate?: string | null;
 };
+
+type ApiBountiesResponse = ApiBounty[] | { data?: ApiBounty[] };
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -50,6 +54,47 @@ async function getBounty(id: string): Promise<Bounty | null> {
   }
 }
 
+function getBountyDescription(bounty: Bounty) {
+  return bounty.description.replace(/\s+/g, " ").trim().slice(0, 155) ||
+    `Review the ${bounty.title} bounty on StellarBounty.`;
+}
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const bounty = await getBounty(params.id);
+
+  if (!bounty) {
+    return {
+      title: "Bounty Unavailable",
+      description: "This StellarBounty listing could not be loaded.",
+      alternates: {
+        canonical: absoluteUrl(`/bounties/${params.id}`),
+      },
+    };
+  }
+
+  const description = getBountyDescription(bounty);
+  const url = absoluteUrl(`/bounties/${bounty.id}`);
+
+  return {
+    title: bounty.title,
+    description,
+    alternates: {
+      canonical: url,
+    },
+    openGraph: {
+      title: `${bounty.title} | ${siteName}`,
+      description,
+      url,
+      type: "article",
+    },
+    twitter: {
+      card: "summary",
+      title: `${bounty.title} | ${siteName}`,
+      description,
+    },
+  };
+}
+
 export async function generateStaticParams() {
   try {
     const response = await fetch(`${API_URL}/bounties`, { next: { revalidate: 60 } });
@@ -58,7 +103,8 @@ export async function generateStaticParams() {
       return [];
     }
 
-    const bounties = (await response.json()) as ApiBounty[];
+    const payload = (await response.json()) as ApiBountiesResponse;
+    const bounties = Array.isArray(payload) ? payload : payload.data ?? [];
 
     return bounties.flatMap((bounty) => (bounty.id ? [{ id: bounty.id }] : []));
   } catch {
@@ -82,5 +128,28 @@ export default async function BountyDetailPage({ params }: { params: { id: strin
     );
   }
 
-  return <BountyDetailClient bounty={bounty} />;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    name: bounty.title,
+    description: getBountyDescription(bounty),
+    url: absoluteUrl(`/bounties/${bounty.id}`),
+    dateModified: bounty.deadline === "No deadline" ? undefined : bounty.deadline,
+    offers: {
+      "@type": "Offer",
+      price: bounty.reward,
+      priceCurrency: "XLM",
+      availability: bounty.status === "open" ? "https://schema.org/InStock" : "https://schema.org/SoldOut",
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <BountyDetailClient bounty={bounty} />
+    </>
+  );
 }

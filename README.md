@@ -66,6 +66,7 @@ cargo test
 | `JWT_SECRET` | Secret for signing JWTs |
 | `STELLAR_NETWORK` | `testnet` or `mainnet` |
 | `NEXT_PUBLIC_API_URL` | Backend URL used by the frontend |
+| `NEXT_PUBLIC_SITE_URL` | Public frontend URL used for canonical links, OpenGraph URLs, and sitemap entries |
 
 ## Contributing
 
