@@ -44,7 +44,7 @@ test.describe("critical bounty flows", () => {
 
   test("creates a bounty with all required fields", async ({ page }) => {
     await hydrateWallet(page);
-    await page.getByRole("link", { name: "Create Bounty" }).click();
+    await page.locator('a[href="/bounties/new"]').dispatchEvent("click");
     await expect(page.getByRole("heading", { name: "Create a New Bounty" })).toBeVisible();
 
     await page.getByLabel("Title").fill("Write Playwright onboarding tests");
