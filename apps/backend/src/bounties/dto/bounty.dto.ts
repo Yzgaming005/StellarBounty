@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import * as StellarSdk from '@stellar/stellar-sdk';
 import {
   IsString,
   IsOptional,
@@ -28,6 +29,39 @@ function IsRewardAmount() {
       },
       defaultMessage() {
         return `rewardAmount must be a whole number between 1 and ${MAX_REWARD_AMOUNT.toString()}`;
+      },
+    },
+  });
+}
+
+function IsStellarPublicKey() {
+  return ValidateBy({
+    name: 'isStellarPublicKey',
+    validator: {
+      validate(value: unknown) {
+        return typeof value === 'string' && StellarSdk.StrKey.isValidEd25519PublicKey(value);
+      },
+      defaultMessage() {
+        return 'ownerAddress must be a valid Stellar public key';
+      },
+    },
+  });
+}
+
+function IsFutureIsoDate() {
+  return ValidateBy({
+    name: 'isFutureIsoDate',
+    validator: {
+      validate(value: unknown) {
+        if (typeof value !== 'string') {
+          return false;
+        }
+
+        const timestamp = new Date(value).getTime();
+        return Number.isFinite(timestamp) && timestamp > Date.now();
+      },
+      defaultMessage() {
+        return 'deadline must be a future ISO 8601 date';
       },
     },
   });
@@ -69,6 +103,7 @@ export class CreateBountyDto {
   })
   @IsString()
   @IsNotEmpty()
+  @IsStellarPublicKey()
   ownerAddress!: string;
 
   @ApiPropertyOptional({
@@ -87,6 +122,7 @@ export class CreateBountyDto {
   })
   @IsOptional()
   @IsISO8601()
+  @IsFutureIsoDate()
   deadline?: string;
 }
 
@@ -114,6 +150,7 @@ export class UpdateBountyDto {
   @ApiPropertyOptional({ description: 'Bounty owner wallet address' })
   @IsOptional()
   @IsString()
+  @IsStellarPublicKey()
   ownerAddress?: string;
 
   @ApiPropertyOptional({ description: 'Updated tags', type: [String] })
@@ -125,6 +162,7 @@ export class UpdateBountyDto {
   @ApiPropertyOptional({ description: 'Updated deadline (ISO 8601)' })
   @IsOptional()
   @IsISO8601()
+  @IsFutureIsoDate()
   deadline?: string;
 
   @ApiPropertyOptional({
