@@ -1,5 +1,11 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import {
@@ -7,8 +13,8 @@ import {
   getAuthRateLimitTtl,
   getAuthVerifyRateLimit,
 } from './auth-rate-limit.config';
-import { ChallengeQueryDto } from './dto/challenge-query.dto';
-import { VerifyDto } from './dto/verify.dto';
+import { ChallengeQueryDto, ChallengeResponseDto } from './dto/challenge-query.dto';
+import { VerifyDto, VerifyResponseDto } from './dto/verify.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -17,6 +23,8 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @ApiOperation({ summary: 'Get authentication challenge nonce' })
+  @ApiOkResponse({ description: 'Challenge nonce generated for the Stellar address.', type: ChallengeResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid or missing Stellar address.' })
   @Get('challenge')
   @Throttle({
     default: {
@@ -29,6 +37,9 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'Verify signed challenge and get JWT' })
+  @ApiOkResponse({ description: 'JWT access token for the verified Stellar address.', type: VerifyResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid verification payload.' })
+  @ApiUnauthorizedResponse({ description: 'Nonce is invalid, expired, or signature verification failed.' })
   @Post('verify')
   @Throttle({
     default: {

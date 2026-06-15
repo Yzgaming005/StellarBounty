@@ -1,7 +1,18 @@
 import { Body, Controller, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateSubmissionDto } from './submissions.dto';
+import { CreateSubmissionDto, SubmissionResponseDto } from './submissions.dto';
 import { SubmissionsService } from './submissions.service';
 
 @ApiTags('submissions')
@@ -11,6 +22,11 @@ export class SubmissionsController {
 
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Submit work for a bounty' })
+  @ApiParam({ name: 'bountyId', description: 'Bounty UUID that receives the submission' })
+  @ApiCreatedResponse({ description: 'Submission created.', type: SubmissionResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid submission payload.' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid JWT.' })
+  @ApiNotFoundResponse({ description: 'Bounty not found.' })
   @UseGuards(JwtAuthGuard)
   @Post()
   create(
@@ -23,6 +39,11 @@ export class SubmissionsController {
 
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'List all submissions for a bounty (owner only)' })
+  @ApiParam({ name: 'bountyId', description: 'Bounty UUID whose submissions should be listed' })
+  @ApiOkResponse({ description: 'Submissions for this bounty.', type: [SubmissionResponseDto] })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid JWT.' })
+  @ApiForbiddenResponse({ description: 'Only the bounty owner can list submissions.' })
+  @ApiNotFoundResponse({ description: 'Bounty not found.' })
   @UseGuards(JwtAuthGuard)
   @Get()
   findAll(
@@ -34,6 +55,13 @@ export class SubmissionsController {
 
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Approve a submission and release payment' })
+  @ApiParam({ name: 'bountyId', description: 'Bounty UUID that owns the submission' })
+  @ApiParam({ name: 'subId', description: 'Submission UUID to approve' })
+  @ApiOkResponse({ description: 'Approved submission.', type: SubmissionResponseDto })
+  @ApiBadRequestResponse({ description: 'A submission is already approved for this bounty.' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid JWT.' })
+  @ApiForbiddenResponse({ description: 'Only the bounty owner can approve submissions.' })
+  @ApiNotFoundResponse({ description: 'Bounty or submission not found.' })
   @UseGuards(JwtAuthGuard)
   @Patch(':subId/approve')
   approve(
@@ -46,6 +74,12 @@ export class SubmissionsController {
 
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Reject a submission' })
+  @ApiParam({ name: 'bountyId', description: 'Bounty UUID that owns the submission' })
+  @ApiParam({ name: 'subId', description: 'Submission UUID to reject' })
+  @ApiOkResponse({ description: 'Rejected submission.', type: SubmissionResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid JWT.' })
+  @ApiForbiddenResponse({ description: 'Only the bounty owner can reject submissions.' })
+  @ApiNotFoundResponse({ description: 'Bounty or submission not found.' })
   @UseGuards(JwtAuthGuard)
   @Patch(':subId/reject')
   reject(
