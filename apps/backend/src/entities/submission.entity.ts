@@ -33,7 +33,7 @@ export class Submission {
   @Column({ type: 'text', nullable: true })
   notes!: string | null;
 
-  @Column({ type: 'enum', enum: SubmissionStatus, default: SubmissionStatus.PENDING })
+  @Column({ type: 'enum', enum: SubmissionStatus, enumName: 'submission_status_enum', default: SubmissionStatus.PENDING })
   status!: SubmissionStatus;
 
   @CreateDateColumn({ type: 'timestamptz' })

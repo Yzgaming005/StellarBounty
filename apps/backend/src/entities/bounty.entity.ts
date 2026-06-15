@@ -32,7 +32,7 @@ export class Bounty {
   @Column({ type: 'timestamptz', nullable: true })
   deadline!: Date | null;
 
-  @Column({ type: 'enum', enum: BountyStatus, default: BountyStatus.OPEN })
+  @Column({ type: 'enum', enum: BountyStatus, enumName: 'bounty_status_enum', default: BountyStatus.OPEN })
   status!: BountyStatus;
 
   @Column()

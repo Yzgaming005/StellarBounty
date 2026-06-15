@@ -8,8 +8,9 @@
     "start": "node dist/main",
     "test": "jest",
     "lint": "eslint \"src/**/*.ts\"",
-    "migration:run": "typeorm-ts-node-commonjs migration:run -d dist/data-source.js",
-    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d dist/data-source.js"
+    "migration:run": "typeorm migration:run -d dist/data-source.js",
+    "migration:revert": "typeorm migration:revert -d dist/data-source.js",
+    "migration:check": "node dist/migrations/check-migration-schema.js"
   },
   "jest": {
     "preset": "ts-jest",
