@@ -1,7 +1,29 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import BountyCard, { type BountyCardData } from "@/app/components/BountyCard";
+import { absoluteUrl, defaultDescription, siteName } from "./seo";
 
 export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "Open Bounties",
+  description: defaultDescription,
+  alternates: {
+    canonical: absoluteUrl(),
+  },
+  openGraph: {
+    title: `Open Bounties | ${siteName}`,
+    description: defaultDescription,
+    url: absoluteUrl(),
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: `Open Bounties | ${siteName}`,
+    description: defaultDescription,
+  },
+};
+
 type SortOption = "newest" | "highest_reward" | "closest_deadline";
 type StatusFilter = "all" | "open" | "in_progress" | "completed";
 

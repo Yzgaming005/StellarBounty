@@ -1,5 +1,28 @@
+import type { Metadata } from "next";
 import MarkdownRenderer from "@/app/components/MarkdownRenderer";
 import Link from "next/link";
+import { absoluteUrl, siteName } from "../../seo";
+
+const description = "Preview a StellarBounty listing page with markdown requirements and bounty details.";
+
+export const metadata: Metadata = {
+  title: "Demo Bounty",
+  description,
+  alternates: {
+    canonical: absoluteUrl("/bounties/demo"),
+  },
+  openGraph: {
+    title: `Demo Bounty | ${siteName}`,
+    description,
+    url: absoluteUrl("/bounties/demo"),
+    type: "article",
+  },
+  twitter: {
+    card: "summary",
+    title: `Demo Bounty | ${siteName}`,
+    description,
+  },
+};
 
 /**
  * Demo bounty page to showcase markdown rendering.
