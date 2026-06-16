@@ -27,6 +27,15 @@ impl EscrowContract {
             !env.storage().instance().has(&symbol_short!("STATUS")),
             "contract already initialized"
         );
+
+        // Event emitted BEFORE storage writes (per issue #174 acceptance criteria)
+        // so that all state-changing functions in the bounty lifecycle emit a
+        // structured event with the new status and relevant data.
+        env.events().publish(
+            (symbol_short!("initialize"), owner.clone()),
+            (BountyStatus::Created, amount, token_address.clone(), arbitrator.clone()),
+        );
+
         env.storage().instance().set(&symbol_short!("OWNER"), &owner);
         env.storage().instance().set(&symbol_short!("AMOUNT"), &amount);
         env.storage().instance().set(&symbol_short!("TOKEN"), &token_address);
@@ -53,6 +62,12 @@ impl EscrowContract {
             &amount,
         );
 
+        // Emit before final status write
+        env.events().publish(
+            (symbol_short!("fund"), owner.clone()),
+            (BountyStatus::Funded, amount),
+        );
+
         env.storage()
             .instance()
             .set(&symbol_short!("STATUS"), &BountyStatus::Funded);
@@ -62,6 +77,13 @@ impl EscrowContract {
     pub fn start_work(env: Env, contributor: Address) {
         contributor.require_auth();
         Self::assert_status(&env, BountyStatus::Funded, "start_work requires Funded status");
+
+        // Emit before storage writes
+        env.events().publish(
+            (symbol_short!("start_work"), contributor.clone()),
+            (BountyStatus::InProgress,),
+        );
+
         env.storage().instance().set(&symbol_short!("CONTRIB"), &contributor);
         env.storage()
             .instance()
@@ -73,6 +95,13 @@ impl EscrowContract {
         contributor.require_auth();
         Self::assert_contributor(&env, &contributor);
         Self::assert_status(&env, BountyStatus::InProgress, "submit requires InProgress status");
+
+        // Emit before storage writes
+        env.events().publish(
+            (symbol_short!("submit"), contributor.clone()),
+            (BountyStatus::UnderReview,),
+        );
+
         env.storage()
             .instance()
             .set(&symbol_short!("STATUS"), &BountyStatus::UnderReview);
@@ -90,6 +119,12 @@ impl EscrowContract {
         let token = token::Client::new(&env, &token_address);
         token.transfer(&env.current_contract_address(), &contributor, &amount);
 
+        // Emit before storage writes
+        env.events().publish(
+            (symbol_short!("approve"), owner.clone()),
+            (BountyStatus::Completed, amount, contributor.clone()),
+        );
+
         env.storage()
             .instance()
             .set(&symbol_short!("STATUS"), &BountyStatus::Completed);
@@ -105,12 +140,22 @@ impl EscrowContract {
             "cancel only allowed from Created or Funded"
         );
 
+        let mut refund: Option<i128> = None;
         if status == BountyStatus::Funded {
             let amount: i128 = env.storage().instance().get(&symbol_short!("AMOUNT")).unwrap();
             let token_address: Address = env.storage().instance().get(&symbol_short!("TOKEN")).unwrap();
             let token = token::Client::new(&env, &token_address);
             token.transfer(&env.current_contract_address(), &owner, &amount);
+            refund = Some(amount);
         }
+
+        // Emit before storage writes. Data is the new status, plus the
+        // refund amount when the bounty had been funded.
+        let event_data: (BountyStatus, Option<i128>) = (BountyStatus::Cancelled, refund);
+        env.events().publish(
+            (symbol_short!("cancel"), owner.clone()),
+            event_data,
+        );
 
         env.storage()
             .instance()
@@ -566,5 +611,83 @@ mod tests {
     fn test_resolve_before_dispute_panics() {
         let (_, client, _, _, _, arbitrator, contributor, _) = setup_under_review();
         client.resolve(&arbitrator, &contributor);
+    }
+
+    // --- Event emission tests (issue #174) -------------------------------
+
+    fn emitted_event_names(env: &Env) -> Vec<String> {
+        env.events()
+            .all()
+            .into_iter()
+            .map(|(_, topics, _)| {
+                // Topic[0] is the event name (a Symbol). Convert to String.
+                match topics.get(0) {
+                    Some(s) => String::from_str(env, &s.to_string()),
+                    None => String::from_str(env, ""),
+                }
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_initialize_emits_event() {
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+
+        let names = emitted_event_names(&env);
+        assert!(
+            names.iter().any(|n| n == "initialize"),
+            "expected an `initialize` event, got {:?}",
+            names
+        );
+    }
+
+    #[test]
+    fn test_fund_emits_event() {
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+        client.fund(&owner);
+
+        let names = emitted_event_names(&env);
+        assert!(
+            names.iter().any(|n| n == "fund"),
+            "expected a `fund` event, got {:?}",
+            names
+        );
+    }
+
+    #[test]
+    fn test_lifecycle_emits_one_event_per_state_change() {
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+        client.fund(&owner);
+        let contributor = Address::generate(&env);
+        client.start_work(&contributor);
+        client.submit(&contributor);
+
+        let names = emitted_event_names(&env);
+        let expected = vec!["initialize", "fund", "start_work", "submit"];
+        for e in &expected {
+            assert!(
+                names.iter().any(|n| n == e),
+                "missing event `{}` in {:?}",
+                e,
+                names
+            );
+        }
+        // No "cancel" or "approve" yet
+        assert!(!names.iter().any(|n| n == "cancel"));
+        assert!(!names.iter().any(|n| n == "approve"));
+    }
+
+    #[test]
+    fn test_cancel_emits_event_with_refund_when_funded() {
+        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        client.initialize(&owner, &amount, &token_address, &arbitrator);
+        client.fund(&owner);
+        client.cancel(&owner);
+
+        let names = emitted_event_names(&env);
+        assert!(names.iter().any(|n| n == "cancel"));
     }
 }
