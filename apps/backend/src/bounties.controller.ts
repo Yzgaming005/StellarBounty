@@ -70,4 +70,16 @@ export class BountiesController {
   remove(@Param('id') id: string) {
     return this.bountiesService.remove(id);
   }
+
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Restore a soft-deleted bounty' })
+  @ApiParam({ name: 'id', description: 'Bounty UUID' })
+  @ApiOkResponse({ description: 'Restored bounty.', type: BountyResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid JWT.' })
+  @ApiNotFoundResponse({ description: 'Bounty not found.' })
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/restore')
+  restore(@Param('id') id: string) {
+    return this.bountiesService.restore(id);
+  }
 }
