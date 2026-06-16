@@ -28,6 +28,8 @@ import { DeadlineAutomationService } from './bounties/deadline-automation.servic
       validationSchema: Joi.object({
         DATABASE_URL: Joi.string().required(),
         JWT_SECRET: Joi.string().required(),
+        JWT_ACCESS_EXPIRES_IN: Joi.string().pattern(/^\d+(ms|s|m|h|d|w|y)$/).default('15m'),
+        JWT_REFRESH_EXPIRES_IN: Joi.string().pattern(/^\d+(ms|s|m|h|d|w|y)$/).default('7d'),
         STELLAR_NETWORK: Joi.string().valid('testnet', 'mainnet').required(),
         CORS_ORIGIN: Joi.string().uri().default('http://localhost:3000'),
         CORS_ORIGINS: Joi.string().optional(),

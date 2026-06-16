@@ -12,6 +12,15 @@ import { JwtStrategy } from './jwt.strategy';
 import { getJwtSecret } from './get-jwt-secret';
 import { Nonce } from '../entities/nonce.entity';
 
+export function createJwtModuleOptions(configService: ConfigService) {
+  return {
+    secret: getJwtSecret(configService),
+    signOptions: {
+      expiresIn: configService.get<string>('JWT_ACCESS_EXPIRES_IN', '15m'),
+    },
+  };
+}
+
 @Module({
   imports: [
     PassportModule,
@@ -20,9 +29,10 @@ import { Nonce } from '../entities/nonce.entity';
       inject: [ConfigService],
       useFactory: createAuthThrottleOptions,
     }),
-    JwtModule.register({
-      secret: getJwtSecret(),
-      signOptions: { expiresIn: '24h' },
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: createJwtModuleOptions,
     }),
     TypeOrmModule.forFeature([Nonce]),
   ],
