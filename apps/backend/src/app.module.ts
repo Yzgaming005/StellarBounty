@@ -45,6 +45,10 @@ import { DeadlineAutomationService } from './bounties/deadline-automation.servic
         BOUNTY_DEADLINE_GRACE_PERIOD_MS: Joi.number().integer().min(0).default(86400000),
         BOUNTY_DEADLINE_REMINDER_WINDOW_MS: Joi.number().integer().min(0).default(172800000),
         PORT: Joi.number().default(4000),
+        LOG_LEVEL: Joi.string()
+          .valid('debug', 'verbose', 'log', 'info', 'warn', 'warning', 'error')
+          .default('log'),
+        SERVICE_NAME: Joi.string().default('stellar-bounty-backend'),
       }),
     }),
     ThrottlerModule.forRootAsync({
