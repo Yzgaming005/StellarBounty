@@ -24,6 +24,13 @@ const mockedFreighter = freighter as jest.Mocked<typeof freighter>;
 
 const TOKEN_STORAGE_KEY = "stellar-bounty.auth-token";
 
+declare global {
+  interface Window {
+    __lastToken?: string | null;
+    __lastError?: string | null;
+  }
+}
+
 function AuthProbe() {
   const { getToken, clearToken, isAuthenticating, apiUrl } = useAuth();
   return (
@@ -34,11 +41,11 @@ function AuthProbe() {
         onClick={async () => {
           try {
             const t = await getToken("GABC");
-            (window as any).__lastToken = t;
-            (window as any).__lastError = null;
-          } catch (err: any) {
-            (window as any).__lastToken = null;
-            (window as any).__lastError = err?.message ?? String(err);
+            window.__lastToken = t;
+            window.__lastError = null;
+          } catch (err) {
+            window.__lastToken = null;
+            window.__lastError = err instanceof Error ? err.message : String(err);
           }
         }}
       >
@@ -52,8 +59,8 @@ function AuthProbe() {
 describe("useAuth — saved-token path (no fetch)", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    (window as any).__lastToken = undefined;
-    (window as any).__lastError = undefined;
+    window.__lastToken = undefined;
+    window.__lastError = undefined;
     jest.clearAllMocks();
   });
 
@@ -66,8 +73,8 @@ describe("useAuth — saved-token path (no fetch)", () => {
     });
 
     expect(mockedFreighter.signMessage).not.toHaveBeenCalled();
-    expect((window as any).__lastToken).toBe("saved.jwt.value");
-    expect((window as any).__lastError).toBeNull();
+    expect(window.__lastToken).toBe("saved.jwt.value");
+    expect(window.__lastError).toBeNull();
   });
 
   it("clearToken removes the stored token", () => {
