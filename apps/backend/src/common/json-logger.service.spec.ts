@@ -85,7 +85,7 @@ describe('JsonLoggerService', () => {
     process.env.NODE_ENV = 'production';
     const logger = new JsonLoggerService({ level: 'error' });
     const err = new Error('kaboom');
-    logger.error('explosion', err.stack, 'Handler');
+    logger.error('explosion', err, 'Handler');
     const entry = parseLog(errSpy.mock.calls[0][0]);
     expect(entry.level).toBe('error');
     expect(entry.errorName).toBe('Error');

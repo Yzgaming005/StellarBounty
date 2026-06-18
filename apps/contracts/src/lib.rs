@@ -63,10 +63,8 @@ impl EscrowContract {
         );
 
         // Emit before final status write
-        env.events().publish(
-            (symbol_short!("fund"), owner.clone()),
-            (BountyStatus::Funded, amount),
-        );
+        env.events()
+            .publish((symbol_short!("fund"), owner.clone()), (BountyStatus::Funded, amount));
 
         env.storage()
             .instance()
@@ -152,10 +150,8 @@ impl EscrowContract {
         // Emit before storage writes. Data is the new status, plus the
         // refund amount when the bounty had been funded.
         let event_data: (BountyStatus, Option<i128>) = (BountyStatus::Cancelled, refund);
-        env.events().publish(
-            (symbol_short!("cancel"), owner.clone()),
-            event_data,
-        );
+        env.events()
+            .publish((symbol_short!("cancel"), owner.clone()), event_data);
 
         env.storage()
             .instance()
@@ -668,12 +664,7 @@ mod tests {
         let names = emitted_event_names(&env);
         let expected = vec!["initialize", "fund", "start_work", "submit"];
         for e in &expected {
-            assert!(
-                names.iter().any(|n| n == e),
-                "missing event `{}` in {:?}",
-                e,
-                names
-            );
+            assert!(names.iter().any(|n| n == e), "missing event `{}` in {:?}", e, names);
         }
         // No "cancel" or "approve" yet
         assert!(!names.iter().any(|n| n == "cancel"));

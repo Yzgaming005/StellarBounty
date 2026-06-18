@@ -11,6 +11,7 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
   log: 20,
   warn: 30,
   error: 40,
+  fatal: 50,
 };
 
 const LEVEL_ALIASES: Record<string, LogLevel> = {
@@ -76,11 +77,14 @@ export class JsonLoggerService implements LoggerService {
     this.emit('log', message, context);
   }
 
-  error(message: any, trace?: string, context?: string): void {
-    const stack = trace ?? (message instanceof Error ? message.stack : undefined);
+  error(message: any, trace?: string | Error, context?: string): void {
+    const traceString = typeof trace === 'string' ? trace : trace?.stack;
+    const traceError = trace instanceof Error ? trace : undefined;
+    const stack = traceString ?? (message instanceof Error ? message.stack : undefined);
     this.emit('error', message, context, {
       stack,
-      errorName: message instanceof Error ? message.name : undefined,
+      errorName:
+        traceError?.name ?? (message instanceof Error ? message.name : undefined),
     });
   }
 
@@ -99,6 +103,7 @@ export class JsonLoggerService implements LoggerService {
   setLogLevels?(_levels: LogLevel[]): void {
     // No-op: level is fixed at construction time. Kept to satisfy the
     // optional `LoggerService.setLogLevels` interface.
+    void _levels;
   }
 
   private emit(
