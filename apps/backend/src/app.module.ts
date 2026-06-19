@@ -60,6 +60,8 @@ import { DeadlineAutomationService } from './bounties/deadline-automation.servic
         BOUNTY_DEADLINE_AUTOMATION_INTERVAL_MS: Joi.number().integer().positive().default(900000),
         BOUNTY_DEADLINE_GRACE_PERIOD_MS: Joi.number().integer().min(0).default(86400000),
         BOUNTY_DEADLINE_REMINDER_WINDOW_MS: Joi.number().integer().min(0).default(172800000),
+        STELLAR_RPC_RETRY_MAX_RETRIES: Joi.number().integer().min(0).default(3),
+        STELLAR_RPC_RETRY_BASE_DELAY_MS: Joi.number().integer().min(0).default(1000),
         PORT: Joi.number().default(4000),
         LOG_LEVEL: Joi.string()
           .valid('debug', 'verbose', 'log', 'info', 'warn', 'warning', 'error')
