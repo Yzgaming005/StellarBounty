@@ -11,6 +11,7 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { JsonLoggerService, jsonLogger } from './common/json-logger.service';
 import { createCorsOptions } from './cors.config';
+import { createContentSecurityPolicy } from './csp.config';
 import { createGracefulShutdownHandler } from './graceful-shutdown';
 import { setupSwagger } from './swagger.setup';
 import { createHstsConfig, shouldTrustProxy } from './transport-security.config';
@@ -33,7 +34,10 @@ async function bootstrap() {
     app.getHttpAdapter().getInstance().set('trust proxy', 1);
   }
 
-  app.use(helmet({ hsts: createHstsConfig(config) }));
+  app.use(helmet({
+    contentSecurityPolicy: createContentSecurityPolicy(config),
+    hsts: createHstsConfig(config),
+  }));
   // HSTS: force HTTPS in production (1 year, includeSubDomains, preload)
   if (config.get<string>('NODE_ENV') === 'production') {
     // Redirect HTTP to HTTPS
