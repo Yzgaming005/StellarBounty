@@ -11,6 +11,8 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { JsonLoggerService, jsonLogger } from './common/json-logger.service';
 import { createCorsOptions } from './cors.config';
+import { createContentSecurityPolicy } from './csp.config';
+import { createGracefulShutdownHandler } from './graceful-shutdown';
 import { setupSwagger } from './swagger.setup';
 import { createValidationPipeOptions } from './validation-pipe.config';
 
@@ -27,7 +29,7 @@ async function bootstrap() {
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ limit: '100kb', extended: true }));
 
-  app.use(helmet());
+  app.use(helmet({ contentSecurityPolicy: createContentSecurityPolicy(config) }));
   // HSTS: force HTTPS in production (1 year, includeSubDomains, preload)
   if (config.get<string>('NODE_ENV') === 'production') {
     app.use(
@@ -59,6 +61,11 @@ async function bootstrap() {
 
   const port = config.get<number>('PORT', 4000);
   await app.listen(port);
+  app.enableShutdownHooks();
+
+  const shutdown = createGracefulShutdownHandler(app, { logger: jsonLogger });
+  process.once('SIGTERM', () => void shutdown('SIGTERM'));
+  process.once('SIGINT', () => void shutdown('SIGINT'));
   jsonLogger.log(`Backend listening on port ${port}`, 'Bootstrap');
 }
 

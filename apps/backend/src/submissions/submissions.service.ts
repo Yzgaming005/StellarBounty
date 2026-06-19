@@ -11,6 +11,8 @@ import { ConfigService } from '@nestjs/config';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { Bounty, BountyStatus } from '../entities/bounty.entity';
 import { Submission, SubmissionStatus } from '../entities/submission.entity';
+import { MetricsService } from '../metrics/metrics.service';
+import { withStellarRpcRetry } from '../common/stellar-rpc-retry';
 import { CreateSubmissionDto } from './submissions.dto';
 
 @Injectable()
@@ -23,6 +25,7 @@ export class SubmissionsService {
     @InjectRepository(Bounty)
     private readonly bountyRepo: Repository<Bounty>,
     private readonly config: ConfigService,
+    private readonly metrics: MetricsService,
   ) {}
 
   async create(bountyId: string, dto: CreateSubmissionDto, contributorAddress: string) {
@@ -102,11 +105,16 @@ export class SubmissionsService {
         ? StellarSdk.Networks.PUBLIC
         : StellarSdk.Networks.TESTNET;
 
-    let lastError: string | undefined;
+    const retryOptions = this.createStellarRpcRetryOptions();
+    let lastError: unknown;
     for (const rpcUrl of rpcUrls) {
       try {
         const server = new StellarSdk.rpc.Server(rpcUrl);
-        const account = await server.getAccount(ownerAddress);
+        const account = await withStellarRpcRetry(
+          'getAccount',
+          () => server.getAccount(ownerAddress),
+          retryOptions,
+        );
 
         const contract = new StellarSdk.Contract(contractId);
         const tx = new StellarSdk.TransactionBuilder(account, {
@@ -119,13 +127,39 @@ export class SubmissionsService {
           .setTimeout(30)
           .build();
 
-        const prepared = await server.prepareTransaction(tx);
+        const simResult = await withStellarRpcRetry(
+          'simulateTransaction',
+          () => server.simulateTransaction(tx),
+          retryOptions,
+        );
+        if ('error' in simResult) {
+          const errorDetails = (simResult as StellarSdk.rpc.Api.SimulateTransactionErrorResponse).error;
+          this.logger.warn(
+            `Stellar transaction simulation failed: bountyId=${bountyId}, contractId=${contractId}, error=${errorDetails}`,
+          );
+          throw new BadRequestException(
+            `Transaction simulation failed: ${errorDetails}. The contract call would not succeed.`,
+          );
+        }
+        if ('transactionData' in simResult) {
+          this.logger.log(`Stellar tx simulation OK: bountyId=${bountyId}`);
+        }
+
+        const prepared = await withStellarRpcRetry(
+          'prepareTransaction',
+          () => server.prepareTransaction(tx),
+          retryOptions,
+        );
         // The backend signs only if a server-side signing key is configured.
         const signingSecret = this.config.get<string>('STELLAR_SIGNING_SECRET');
         if (signingSecret) {
           const signingKeypair = StellarSdk.Keypair.fromSecret(signingSecret);
           prepared.sign(signingKeypair);
-          await server.sendTransaction(prepared);
+          await withStellarRpcRetry(
+            'sendTransaction',
+            () => server.sendTransaction(prepared),
+            retryOptions,
+          );
         }
         // Success — log which RPC was used if we fell back from primary
         if (rpcUrl !== rpcUrls[0]) {
@@ -135,17 +169,34 @@ export class SubmissionsService {
         }
         return; // success — stop trying
       } catch (error) {
-        lastError = error instanceof Error ? error.message : String(error);
+        if (error instanceof BadRequestException) throw error;
+        lastError = error;
         this.logger.warn(
-          `Stellar RPC attempt failed: bountyId=${bountyId}, rpcUrl=${rpcUrl}, error=${lastError}`,
+          `Stellar RPC attempt failed: bountyId=${bountyId}, rpcUrl=${rpcUrl}, error=${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }
     // All RPC URLs exhausted
     this.logger.warn(
-      `Stellar contract approval skipped after all RPC endpoints failed: bountyId=${bountyId}, contractId=${contractId}, rpcUrls=${rpcUrls.join(',')}, lastError=${lastError}`,
+      `Stellar contract approval failed after all RPC endpoints failed: bountyId=${bountyId}, contractId=${contractId}, rpcUrls=${rpcUrls.join(',')}, lastError=${lastError instanceof Error ? lastError.message : String(lastError)}`,
     );
-    // If no signing secret, the transaction is prepared but not submitted —
-    // the client is expected to sign and submit it separately.
+    throw lastError;
+  }
+
+  private createStellarRpcRetryOptions() {
+    const maxRetries = Number(this.config.get<number>('STELLAR_RPC_RETRY_MAX_RETRIES', 3));
+    const baseDelayMs = Number(this.config.get<number>('STELLAR_RPC_RETRY_BASE_DELAY_MS', 1000));
+
+    return {
+      maxRetries,
+      baseDelayMs,
+      logger: this.logger,
+      onFailure: ({ operation, retryable }: { operation: string; retryable: boolean }) => {
+        this.metrics.recordStellarRpcFailure({ operation, retryable });
+      },
+      onRetry: ({ operation, retryable }: { operation: string; retryable: boolean }) => {
+        this.metrics.recordStellarRpcRetry({ operation, retryable });
+      },
+    };
   }
 }

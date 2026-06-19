@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateBountyDto, UpdateBountyDto } from './bounties/dto/bounty.dto';
+import { sanitizeDescription } from './common/sanitize-description';
 import { Bounty } from './entities/bounty.entity';
 
 @Injectable()
@@ -14,6 +15,8 @@ export class BountiesService {
   async create(dto: CreateBountyDto) {
     const bounty = this.bounties.create({
       ...dto,
+      description: sanitizeDescription(dto.description),
+      rewardAmount: BigInt(dto.rewardAmount),
       deadline: dto.deadline ? new Date(dto.deadline) : null,
     });
     return this.bounties.save(bounty);
@@ -35,6 +38,8 @@ export class BountiesService {
     const bounty = await this.findOne(id);
     Object.assign(bounty, {
       ...dto,
+      description: dto.description === undefined ? bounty.description : sanitizeDescription(dto.description),
+      rewardAmount: dto.rewardAmount !== undefined ? BigInt(dto.rewardAmount) : bounty.rewardAmount,
       deadline: dto.deadline === undefined ? bounty.deadline : new Date(dto.deadline),
     });
     return this.bounties.save(bounty);
