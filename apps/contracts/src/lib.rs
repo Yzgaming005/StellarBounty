@@ -637,10 +637,7 @@ mod tests {
         let (env, client, owner, token_address, _, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
 
-        assert!(
-            has_event(&env, "initialize"),
-            "expected an `initialize` event",
-        );
+        assert!(has_event(&env, "initialize"), "expected an `initialize` event");
     }
 
     #[test]
@@ -649,10 +646,7 @@ mod tests {
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
 
-        assert!(
-            has_event(&env, "fund"),
-            "expected a `fund` event",
-        );
+        assert!(has_event(&env, "fund"), "expected a `fund` event");
     }
 
     #[test]
