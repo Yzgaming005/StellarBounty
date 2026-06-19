@@ -649,7 +649,7 @@ mod tests {
 
     #[test]
     fn test_fund_emits_event() {
-        let (env, client, owner, token_address, contract_id, _, arbitrator, amount) = setup();
+        let (env, client, owner, token_address, contract_id, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
 
@@ -658,7 +658,7 @@ mod tests {
 
     #[test]
     fn test_lifecycle_emits_one_event_per_state_change() {
-        let (env, client, owner, token_address, contract_id, _, arbitrator, amount) = setup();
+        let (env, client, owner, token_address, contract_id, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
         let contributor = Address::generate(&env);
