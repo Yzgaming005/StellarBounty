@@ -258,9 +258,9 @@ impl EscrowContract {
 mod tests {
     use super::*;
     use soroban_sdk::{
-        testutils::Address as _,
+        testutils::{Address as _, Events},
         token::{Client as TokenClient, StellarAssetClient},
-        Address, Env,
+        Address, Env, String, Vec,
     };
 
     fn setup() -> (
@@ -665,7 +665,10 @@ mod tests {
         client.submit(&contributor);
 
         let names = emitted_event_names(&env);
-        let expected = vec!["initialize", "fund", "start_work", "submit"];
+        // Use a plain array (not the `vec!` std macro) because the contract is
+        // built with `#![no_std]`. The soroban_sdk types below also match the
+        // no_std contract surface.
+        let expected = ["initialize", "fund", "start_work", "submit"];
         for e in &expected {
             assert!(names.iter().any(|n| n == e), "missing event `{}` in {:?}", e, names);
         }
