@@ -263,13 +263,17 @@ mod tests {
         Address, Env, Symbol, TryFromVal,
     };
 
-    /// Returns true if at least one emitted event has a first topic whose
-    /// Symbol value equals `name`. Compares Symbols directly to avoid
-    /// allocating a `Vec<String>` (soroban_sdk's Vec does not implement
-    /// `FromIterator`, so collecting into it is awkward).
-    fn has_event(env: &Env, name: &str) -> bool {
+    /// Returns true if the EscrowContract emitted at least one event with
+    /// the given name. Filters by the EscrowContract address because
+    /// `env.events().all()` includes events from *every* contract invoked in
+    /// the test, including the Stellar Asset Contract (which emits its own
+    /// `approve` event during `setup` via `token_client.approve(...)`).
+    fn has_event(env: &Env, contract_id: &Address, name: &str) -> bool {
         let target = Symbol::new(env, name);
-        for (_contract, topics, _data) in env.events().all() {
+        for (contract, topics, _data) in env.events().all() {
+            if &contract != contract_id {
+                continue;
+            }
             if let Some(val) = topics.get(0) {
                 if let Ok(sym) = Symbol::try_from_val(env, &val) {
                     if sym == target {
@@ -634,24 +638,24 @@ mod tests {
 
     #[test]
     fn test_initialize_emits_event() {
-        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        let (env, client, owner, token_address, contract_id, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
 
-        assert!(has_event(&env, "initialize"), "expected an `initialize` event");
+        assert!(has_event(&env, &contract_id, "initialize"), "expected an `initialize` event");
     }
 
     #[test]
     fn test_fund_emits_event() {
-        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        let (env, client, owner, token_address, contract_id, _, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
 
-        assert!(has_event(&env, "fund"), "expected a `fund` event");
+        assert!(has_event(&env, &contract_id, "fund"), "expected a `fund` event");
     }
 
     #[test]
     fn test_lifecycle_emits_one_event_per_state_change() {
-        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        let (env, client, owner, token_address, contract_id, _, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
         let contributor = Address::generate(&env);
@@ -659,20 +663,21 @@ mod tests {
         client.submit(&contributor);
 
         for name in ["initialize", "fund", "start_work", "submit"] {
-            assert!(has_event(&env, name), "missing event `{}`", name);
+            assert!(has_event(&env, &contract_id, name), "missing event `{}`", name);
         }
-        // No "cancel" or "approve" yet
-        assert!(!has_event(&env, "cancel"));
-        assert!(!has_event(&env, "approve"));
+        // No "cancel" or "approve" yet from EscrowContract (the SAC token
+        // emits its own "approve" during setup, which we now filter out).
+        assert!(!has_event(&env, &contract_id, "cancel"));
+        assert!(!has_event(&env, &contract_id, "approve"));
     }
 
     #[test]
     fn test_cancel_emits_event_with_refund_when_funded() {
-        let (env, client, owner, token_address, _, arbitrator, amount) = setup();
+        let (env, client, owner, token_address, contract_id, _, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
         client.cancel(&owner);
 
-        assert!(has_event(&env, "cancel"));
+        assert!(has_event(&env, &contract_id, "cancel"));
     }
 }
