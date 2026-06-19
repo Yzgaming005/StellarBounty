@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run lint-staged on the staged files. To skip this hook (for example, when
+# committing an emergency WIP), pass `--no-verify` to `git commit`.
+npx --no-install lint-staged

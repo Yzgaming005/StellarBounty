@@ -7,9 +7,22 @@ Thanks for helping improve StellarBounty. Keep pull requests focused, link the i
 ```bash
 git clone https://github.com/BountyOnChain/StellarBounty.git
 cd StellarBounty
-npm install
+npm install               # also installs Git hooks via the `prepare` script
 cp .env.example .env
 ```
+
+The `prepare` script invokes [husky](https://typicode.github.io/husky/) which writes the
+hooks under `.husky/`:
+
+- `pre-commit` runs [`lint-staged`](https://github.com/lint-staged/lint-staged) — Prettier
+  - ESLint on staged `*.{ts,tsx,js,jsx,json,md,yml,yaml}` and `cargo fmt --check` on staged
+    `*.rs` files.
+- `pre-push` runs the workspace unit tests (`npm test --workspaces --if-present`).
+
+If you ever need to bypass a hook locally (for example, to commit a WIP that you know will
+be fixed up in a follow-up), pass `--no-verify` to `git commit` or `git push`. CI is the
+last line of defence, so do not skip hooks on shared branches unless you have an explicit
+agreement with the maintainers.
 
 Install contract tooling when working under `apps/contracts`:
 

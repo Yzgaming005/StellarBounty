@@ -1,0 +1,62 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Pre-push: run unit tests in the affected workspaces before pushing.
+#
+# To keep the hook fast on doc-only / config-only pushes, we only run the
+# workspace tests when the commits being pushed actually touch that workspace's
+# files. Pass `--no-verify` to `git push` to bypass entirely (CI is the last
+# line of defence).
+#
+# Override with environment variables:
+#   HUSKY_PRE_PUSH_FORCE=1   always run all workspace tests
+#   HUSKY_PRE_PUSH_SKIP=1    skip the hook
+
+if [ "${HUSKY_PRE_PUSH_SKIP:-0}" = "1" ]; then
+  echo "husky pre-push: skipped via HUSKY_PRE_PUSH_SKIP=1"
+  exit 0
+fi
+
+# Read refs being pushed from stdin: <local_ref> <local_sha> <remote_ref> <remote_sha>
+REFS=$(cat)
+
+if [ "${HUSKY_PRE_PUSH_FORCE:-0}" = "1" ]; then
+  echo "husky pre-push: forced full workspace test run"
+  npm test --workspaces --if-present
+  exit $?
+fi
+
+run_for() {
+  dir="$1"
+  label="$2"
+  if git diff --name-only --quiet "$3..HEAD" -- "$dir" 2>/dev/null; then
+    # $3..HEAD had no changes in $dir. Try the merge-base for forced pushes.
+    base=$(git merge-base "$3" HEAD 2>/dev/null || echo "$3")
+    if git diff --name-only --quiet "$base..HEAD" -- "$dir" 2>/dev/null; then
+      echo "husky pre-push: $label unchanged → skipping tests"
+      return 0
+    fi
+  fi
+  echo "husky pre-push: $label changed → running tests"
+  npm test --workspace="$dir" --if-present
+  return $?
+}
+
+# Determine the remote tip from stdin. Fall back to @{u} for the current branch
+# if stdin parsing fails (e.g. older git versions or non-push invocations).
+remote_sha=$(echo "$REFS" | awk 'NR==1 {print $4}')
+if [ -z "$remote_sha" ] || [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+  remote_sha=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null | xargs git rev-parse 2>/dev/null || echo "")
+fi
+
+if [ -z "$remote_sha" ]; then
+  echo "husky pre-push: no upstream ref → running all workspace tests"
+  npm test --workspaces --if-present
+  exit $?
+fi
+
+status=0
+run_for "apps/backend" "backend"  "$remote_sha" || status=$?
+run_for "apps/frontend" "frontend" "$remote_sha" || status=$?
+
+exit "$status"
