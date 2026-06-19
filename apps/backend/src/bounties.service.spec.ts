@@ -176,7 +176,7 @@ describe('BountiesService', () => {
       const existing = createBounty({ id: 'bounty-1' });
       repository.findOne!.mockResolvedValueOnce(existing);
 
-      const result = await service.create({
+      await service.create({
         title: 'Duplicate bounty',
         description: 'Should not be created',
         rewardAmount: '5000000',
@@ -193,7 +193,7 @@ describe('BountiesService', () => {
       repository.create!.mockReturnValueOnce(newBounty);
       repository.save!.mockResolvedValueOnce(newBounty);
 
-      const result = await service.create({
+      await service.create({
         title: 'New bounty',
         description: 'Fresh creation',
         rewardAmount: '10000000',
