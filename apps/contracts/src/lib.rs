@@ -260,8 +260,26 @@ mod tests {
     use soroban_sdk::{
         testutils::{Address as _, Events},
         token::{Client as TokenClient, StellarAssetClient},
-        Address, Env, String, Vec,
+        Address, Env, Symbol, TryFromVal,
     };
+
+    /// Returns true if at least one emitted event has a first topic whose
+    /// Symbol value equals `name`. Compares Symbols directly to avoid
+    /// allocating a `Vec<String>` (soroban_sdk's Vec does not implement
+    /// `FromIterator`, so collecting into it is awkward).
+    fn has_event(env: &Env, name: &str) -> bool {
+        let target = Symbol::new(env, name);
+        for (_contract, topics, _data) in env.events().all() {
+            if let Some(val) = topics.get(0) {
+                if let Ok(sym) = Symbol::try_from_val(env, &val) {
+                    if sym == target {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
+    }
 
     fn setup() -> (
         Env,
@@ -614,30 +632,14 @@ mod tests {
 
     // --- Event emission tests (issue #174) -------------------------------
 
-    fn emitted_event_names(env: &Env) -> Vec<String> {
-        env.events()
-            .all()
-            .into_iter()
-            .map(|(_, topics, _)| {
-                // Topic[0] is the event name (a Symbol). Convert to String.
-                match topics.get(0) {
-                    Some(s) => String::from_str(env, &s.to_string()),
-                    None => String::from_str(env, ""),
-                }
-            })
-            .collect()
-    }
-
     #[test]
     fn test_initialize_emits_event() {
         let (env, client, owner, token_address, _, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
 
-        let names = emitted_event_names(&env);
         assert!(
-            names.iter().any(|n| n == "initialize"),
-            "expected an `initialize` event, got {:?}",
-            names
+            has_event(&env, "initialize"),
+            "expected an `initialize` event",
         );
     }
 
@@ -647,11 +649,9 @@ mod tests {
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
 
-        let names = emitted_event_names(&env);
         assert!(
-            names.iter().any(|n| n == "fund"),
-            "expected a `fund` event, got {:?}",
-            names
+            has_event(&env, "fund"),
+            "expected a `fund` event",
         );
     }
 
@@ -664,17 +664,12 @@ mod tests {
         client.start_work(&contributor);
         client.submit(&contributor);
 
-        let names = emitted_event_names(&env);
-        // Use a plain array (not the `vec!` std macro) because the contract is
-        // built with `#![no_std]`. The soroban_sdk types below also match the
-        // no_std contract surface.
-        let expected = ["initialize", "fund", "start_work", "submit"];
-        for e in &expected {
-            assert!(names.iter().any(|n| n == e), "missing event `{}` in {:?}", e, names);
+        for name in ["initialize", "fund", "start_work", "submit"] {
+            assert!(has_event(&env, name), "missing event `{}`", name);
         }
         // No "cancel" or "approve" yet
-        assert!(!names.iter().any(|n| n == "cancel"));
-        assert!(!names.iter().any(|n| n == "approve"));
+        assert!(!has_event(&env, "cancel"));
+        assert!(!has_event(&env, "approve"));
     }
 
     #[test]
@@ -684,7 +679,6 @@ mod tests {
         client.fund(&owner);
         client.cancel(&owner);
 
-        let names = emitted_event_names(&env);
-        assert!(names.iter().any(|n| n == "cancel"));
+        assert!(has_event(&env, "cancel"));
     }
 }
