@@ -28,6 +28,8 @@ export class MetricsService {
   private readonly databaseQueryErrors = new Map<string, number>();
   private readonly databaseQueryDurations: number[] = [];
   private activeWebSocketConnections = 0;
+  private readonly rpcCallCounts = new Map<string, number>();
+  private readonly rpcCallFailures = new Map<string, number>();
 
   recordHttpRequest(metric: RequestMetric): void {
     const key = this.httpKey(metric);
@@ -82,6 +84,7 @@ export class MetricsService {
     this.appendHttpMetrics(lines);
     this.appendDatabaseMetrics(lines);
     this.appendWebSocketMetrics(lines);
+    this.appendStellarRpcMetrics(lines);
 
     return `${lines.join('\n')}\n`;
   }
@@ -180,6 +183,52 @@ export class MetricsService {
       '# TYPE stellar_bounty_websocket_connections_active gauge',
       `stellar_bounty_websocket_connections_active ${this.activeWebSocketConnections}`,
     );
+  }
+
+  recordStellarRpcCall(metric: { rpcUrl: string; failed: boolean }): void {
+    this.rpcCallCounts.set(metric.rpcUrl, (this.rpcCallCounts.get(metric.rpcUrl) ?? 0) + 1);
+    if (metric.failed) {
+      this.rpcCallFailures.set(
+        metric.rpcUrl,
+        (this.rpcCallFailures.get(metric.rpcUrl) ?? 0) + 1,
+      );
+    }
+  }
+
+  getStellarRpcMetrics(): {
+    counts: Map<string, number>;
+    failures: Map<string, number>;
+  } {
+    return {
+      counts: new Map(this.rpcCallCounts),
+      failures: new Map(this.rpcCallFailures),
+    };
+  }
+
+  private appendStellarRpcMetrics(lines: string[]): void {
+    lines.push(
+      '# HELP stellar_bounty_stellar_rpc_calls_total Total Stellar RPC calls by endpoint.',
+      '# TYPE stellar_bounty_stellar_rpc_calls_total counter',
+    );
+    [...this.rpcCallCounts.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .forEach(([url, count]) => {
+        lines.push(
+          `stellar_bounty_stellar_rpc_calls_total{rpc_url="${this.escapeLabel(url)}"} ${count}`,
+        );
+      });
+
+    lines.push(
+      '# HELP stellar_bounty_stellar_rpc_failures_total Failed Stellar RPC calls by endpoint.',
+      '# TYPE stellar_bounty_stellar_rpc_failures_total counter',
+    );
+    [...this.rpcCallFailures.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .forEach(([url, count]) => {
+        lines.push(
+          `stellar_bounty_stellar_rpc_failures_total{rpc_url="${this.escapeLabel(url)}"} ${count}`,
+        );
+      });
   }
 
   private httpKey(metric: RequestMetricLabels): string {

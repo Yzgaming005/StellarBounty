@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { Bounty, BountyStatus } from '../entities/bounty.entity';
 import { Submission, SubmissionStatus } from '../entities/submission.entity';
 import { SubmissionsService } from './submissions.service';
+import { StellarRpcClient } from '../common/stellar-rpc-client';
 
 const mockPreparedTransaction = { sign: jest.fn() };
 const mockServer = {
@@ -23,6 +24,14 @@ const mockTransactionBuilder = {
   build: jest.fn(),
 };
 const mockSigningKeypair = { publicKey: jest.fn() };
+
+const mockStellarRpcExecute = jest.fn();
+const mockStellarRpcGetHealthSnapshot = jest.fn();
+const mockStellarRpcClient = {
+  execute: mockStellarRpcExecute,
+  getHealthSnapshot: mockStellarRpcGetHealthSnapshot,
+  getNextHealthyUrl: jest.fn(),
+};
 
 jest.mock('@stellar/stellar-sdk', () => ({
   BASE_FEE: '100',
@@ -103,11 +112,19 @@ describe('SubmissionsService', () => {
     config = {
       get: jest.fn((_key: string, defaultValue?: unknown) => defaultValue),
     };
+    mockStellarRpcExecute.mockReset();
+    mockStellarRpcGetHealthSnapshot.mockReset().mockReturnValue([]);
+    mockStellarRpcExecute.mockImplementation(async (fn: (s: unknown) => Promise<unknown>) => ({
+      value: fn ? await fn(mockServer) : mockServer,
+      rpcUrl: 'https://rpc.example.com',
+      attempts: 1,
+    }));
 
     service = new SubmissionsService(
       submissionRepo as unknown as Repository<Submission>,
       bountyRepo as unknown as Repository<Bounty>,
       config as unknown as ConfigService,
+      mockStellarRpcClient as unknown as StellarRpcClient,
     );
   });
 
@@ -224,7 +241,7 @@ describe('SubmissionsService', () => {
 
       await service.approve('bounty1', 'submission1', 'GOWNER');
 
-      expect(StellarSdk.rpc.Server).toHaveBeenCalledWith('https://rpc.example.com');
+      expect(mockStellarRpcExecute).toHaveBeenCalled();
       expect(StellarSdk.Contract).toHaveBeenCalledWith('contract-id');
       expect(StellarSdk.nativeToScVal).toHaveBeenCalledWith('GOWNER', { type: 'address' });
       expect(StellarSdk.TransactionBuilder).toHaveBeenCalledWith(

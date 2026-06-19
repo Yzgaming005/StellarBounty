@@ -12,6 +12,7 @@ import * as StellarSdk from '@stellar/stellar-sdk';
 import { Bounty, BountyStatus } from '../entities/bounty.entity';
 import { Submission, SubmissionStatus } from '../entities/submission.entity';
 import { CreateSubmissionDto } from './submissions.dto';
+import { StellarRpcClient } from '../common/stellar-rpc-client';
 
 @Injectable()
 export class SubmissionsService {
@@ -23,6 +24,7 @@ export class SubmissionsService {
     @InjectRepository(Bounty)
     private readonly bountyRepo: Repository<Bounty>,
     private readonly config: ConfigService,
+    private readonly stellarRpc: StellarRpcClient,
   ) {}
 
   async create(bountyId: string, dto: CreateSubmissionDto, contributorAddress: string) {
@@ -86,19 +88,18 @@ export class SubmissionsService {
     if (!contractId) return; // no contract configured — skip (dev/test mode)
 
     const network = this.config.get<string>('STELLAR_NETWORK', 'testnet');
-    const rpcUrl =
-      this.config.get<string>('STELLAR_RPC_URL') ??
-      (network === 'mainnet'
-        ? 'https://mainnet.stellar.validationcloud.io/v1/rpc'
-        : 'https://soroban-testnet.stellar.org');
-
-    const server = new StellarSdk.rpc.Server(rpcUrl);
     const networkPassphrase =
       network === 'mainnet'
         ? StellarSdk.Networks.PUBLIC
         : StellarSdk.Networks.TESTNET;
 
     try {
+      const { value: server, rpcUrl } = await this.stellarRpc.execute(
+        (s) => Promise.resolve(s),
+        { timeoutMs: 5000, retriesPerEndpoint: 0 },
+      );
+      void rpcUrl; // surfaced via metrics + logs
+
       const account = await server.getAccount(ownerAddress);
 
       const contract = new StellarSdk.Contract(contractId);
@@ -122,8 +123,11 @@ export class SubmissionsService {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+      const rpcHealth = this.stellarRpc.getHealthSnapshot();
       this.logger.warn(
-        `Stellar contract approval skipped after RPC failure: bountyId=${bountyId}, contractId=${contractId}, rpcUrl=${rpcUrl}, error=${message}`,
+        `Stellar contract approval skipped after RPC failure: bountyId=${bountyId}, contractId=${contractId}, rpcHealth=${JSON.stringify(
+          rpcHealth.map((e) => ({ url: e.url, healthy: e.healthy })),
+        )}, error=${message}`,
       );
     }
     // If no signing secret, the transaction is prepared but not submitted —

@@ -4,11 +4,19 @@ import { Repository } from 'typeorm';
 import { Bounty, BountyStatus } from '../entities/bounty.entity';
 import { Submission, SubmissionStatus } from '../entities/submission.entity';
 import { SubmissionsService } from './submissions.service';
+import { StellarRpcClient } from '../common/stellar-rpc-client';
 
 const mockServer = {
   getAccount: jest.fn(),
   prepareTransaction: jest.fn(),
   sendTransaction: jest.fn(),
+};
+
+const mockStellarRpcExecute = jest.fn();
+const mockStellarRpcClient = {
+  execute: mockStellarRpcExecute,
+  getHealthSnapshot: jest.fn().mockReturnValue([]),
+  getNextHealthyUrl: jest.fn(),
 };
 
 jest.mock('@stellar/stellar-sdk', () => ({
@@ -80,17 +88,23 @@ describe('SubmissionsService contract error handling', () => {
       }),
     };
     mockServer.getAccount.mockRejectedValueOnce(new Error('rpc unavailable'));
+    mockStellarRpcExecute.mockImplementation(async (fn: (s: unknown) => Promise<unknown>) => ({
+      value: fn ? await fn(mockServer) : mockServer,
+      rpcUrl: 'https://rpc.example.com',
+      attempts: 1,
+    }));
 
     const service = new SubmissionsService(
       submissionRepo as unknown as Repository<Submission>,
       bountyRepo as unknown as Repository<Bounty>,
       config as unknown as ConfigService,
+      mockStellarRpcClient as unknown as StellarRpcClient,
     );
 
     await expect(service.approve('bounty1', 'submission1', 'GOWNER')).resolves.toMatchObject({
       status: SubmissionStatus.APPROVED,
     });
-    expect(StellarSdk.rpc.Server).toHaveBeenCalledWith('https://rpc.example.com');
+    expect(mockStellarRpcExecute).toHaveBeenCalled();
     expect(bounty.status).toBe(BountyStatus.COMPLETED);
     expect(bountyRepo.save).toHaveBeenCalledWith(bounty);
     expect(submissionRepo.save).toHaveBeenCalledWith(submission);
