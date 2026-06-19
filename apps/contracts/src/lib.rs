@@ -676,7 +676,7 @@ mod tests {
 
     #[test]
     fn test_cancel_emits_event_with_refund_when_funded() {
-        let (env, client, owner, token_address, contract_id, _, arbitrator, amount) = setup();
+        let (env, client, owner, token_address, contract_id, arbitrator, amount) = setup();
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
         client.cancel(&owner);
