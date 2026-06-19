@@ -4,6 +4,7 @@ import { ValidationPipe, Logger as NestLogger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import compression from 'compression';
+import express from 'express';
 import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
 import { AppModule } from './app.module';
@@ -22,13 +23,36 @@ async function bootstrap() {
   NestLogger.overrideLogger(jsonLogger as unknown as JsonLoggerService);
   const config = app.get(ConfigService);
 
+  // Request body size limits — DoS protection (#158)
+  app.use(express.json({ limit: '100kb' }));
+  app.use(express.urlencoded({ limit: '100kb', extended: true }));
+
   app.use(helmet());
+  // HSTS: force HTTPS in production (1 year, includeSubDomains, preload)
+  if (config.get<string>('NODE_ENV') === 'production') {
+    app.use(
+      helmet.hsts({
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true,
+      }),
+    );
+    // Redirect HTTP to HTTPS
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.headers['x-forwarded-proto'] !== 'https') {
+        res.redirect(301, `https://${req.headers.host}${req.url}`);
+        return;
+      }
+      next();
+    });
+  }
   app.use(compression());
   app.use((req: Request, _res: Response, next: NextFunction) => {
     req.headers['x-request-id'] = req.headers['x-request-id'] ?? randomUUID();
     next();
   });
   app.enableCors(createCorsOptions(config));
+  app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe(createValidationPipeOptions()));
   app.useGlobalFilters(new HttpExceptionFilter());
   setupSwagger(app);
