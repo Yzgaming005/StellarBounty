@@ -1,6 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Address, Env};
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Address, Env, Symbol};
 
 #[contracttype]
 #[derive(Clone, PartialEq, Debug)]
@@ -31,8 +31,10 @@ impl EscrowContract {
         // Event emitted BEFORE storage writes (per issue #174 acceptance criteria)
         // so that all state-changing functions in the bounty lifecycle emit a
         // structured event with the new status and relevant data.
+        // `Symbol::new` (vs `symbol_short!`) is used for "initialize" because the
+        // string is 10 chars — over the `symbol_short!` macro's 9-char limit.
         env.events().publish(
-            (symbol_short!("initialize"), owner.clone()),
+            (Symbol::new(&env, "initialize"), owner.clone()),
             (BountyStatus::Created, amount, token_address.clone(), arbitrator.clone()),
         );
 
@@ -76,9 +78,10 @@ impl EscrowContract {
         contributor.require_auth();
         Self::assert_status(&env, BountyStatus::Funded, "start_work requires Funded status");
 
-        // Emit before storage writes
+        // Emit before storage writes. `Symbol::new` is used here because
+        // "start_work" is 10 chars, over the `symbol_short!` macro's 9-char limit.
         env.events().publish(
-            (symbol_short!("start_work"), contributor.clone()),
+            (Symbol::new(&env, "start_work"), contributor.clone()),
             (BountyStatus::InProgress,),
         );
 
