@@ -99,7 +99,8 @@ export class SubmissionsService {
         () => server.getFeeStats(),
         retryOptions,
       );
-      const p95 = Number(feeStats.feeCharged.p95);
+      const feeStatsAny = feeStats as unknown as { feeCharged: { p95: string } };
+      const p95 = Number(feeStatsAny.feeCharged.p95);
       const maxFee = Number(this.config.get<number>('STELLAR_MAX_FEE', 100000));
       const fee = Math.min(p95, maxFee);
       this.logger.log(`Fee stats: p95=${p95}, maxFee=${maxFee}, using=${fee}`);
