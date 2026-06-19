@@ -653,10 +653,7 @@ mod tests {
         client.initialize(&owner, &amount, &token_address, &arbitrator);
         client.fund(&owner);
 
-        assert!(
-            has_event(&env, &contract_id, "fund"),
-            "expected a `fund` event"
-        );
+        assert!(has_event(&env, &contract_id, "fund"), "expected a `fund` event");
     }
 
     #[test]
