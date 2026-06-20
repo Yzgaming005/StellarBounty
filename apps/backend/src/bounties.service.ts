@@ -13,6 +13,12 @@ export class BountiesService {
   ) {}
 
   async create(dto: CreateBountyDto) {
+    // Re-initialization protection: check if bounty with same title already exists
+    const existing = await this.bounties.findOne({ where: { title: dto.title } });
+    if (existing) {
+      return existing;
+    }
+
     const bounty = this.bounties.create({
       ...dto,
       description: sanitizeDescription(dto.description),

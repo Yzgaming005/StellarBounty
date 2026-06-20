@@ -228,4 +228,38 @@ describe('BountiesService', () => {
       expect(repository.restore).not.toHaveBeenCalled();
     });
   });
+
+  describe('re-initialization protection', () => {
+    it('should not create duplicate bounty with same id', async () => {
+      const existing = createBounty({ id: 'bounty-1' });
+      repository.findOne!.mockResolvedValueOnce(existing);
+
+      await service.create({
+        title: 'Duplicate bounty',
+        description: 'Should not be created',
+        rewardAmount: '5000000',
+        ownerAddress: 'GDXP4W5M2K2N7KDXP4W5M2K2N7KDXP4W5M2K2N7KDXP4W5M2K2N7KDX',
+      });
+
+      expect(repository.create).not.toHaveBeenCalled();
+      expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('should allow creation when no bounty exists with same id', async () => {
+      repository.findOne!.mockResolvedValueOnce(null);
+      const newBounty = createBounty({ id: 'bounty-2' });
+      repository.create!.mockReturnValueOnce(newBounty);
+      repository.save!.mockResolvedValueOnce(newBounty);
+
+      await service.create({
+        title: 'New bounty',
+        description: 'Fresh creation',
+        rewardAmount: '10000000',
+        ownerAddress: 'GDXP4W5M2K2N7KDXP4W5M2K2N7KDXP4W5M2K2N7KDXP4W5M2K2N7KDX',
+      });
+
+      expect(repository.create).toHaveBeenCalled();
+      expect(repository.save).toHaveBeenCalled();
+    });
+  });
 });
