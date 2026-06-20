@@ -51,6 +51,8 @@ import { DeadlineAutomationService } from './bounties/deadline-automation.servic
         AUTH_NONCE_TTL_MS: Joi.number().integer().positive().default(300000),
         AUTH_CHALLENGE_RATE_LIMIT: Joi.number().integer().positive().default(5),
         AUTH_VERIFY_RATE_LIMIT: Joi.number().integer().positive().default(10),
+        NODE_ENV: Joi.string().valid('development', 'test', 'production').default('development'),
+        TRUST_PROXY: Joi.boolean().default(false),
         DB_POOL_MAX: Joi.number().integer().positive().default(DEFAULT_DB_POOL_MAX),
         DB_POOL_IDLE_TIMEOUT_MS: Joi.number().integer().positive().default(DEFAULT_DB_POOL_IDLE_TIMEOUT_MS),
         DB_POOL_CONNECT_TIMEOUT_MS: Joi.number().integer().positive().default(DEFAULT_DB_POOL_CONNECT_TIMEOUT_MS),

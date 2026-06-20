@@ -14,6 +14,7 @@ import { createCorsOptions } from './cors.config';
 import { createContentSecurityPolicy } from './csp.config';
 import { createGracefulShutdownHandler } from './graceful-shutdown';
 import { setupSwagger } from './swagger.setup';
+import { createHstsConfig, shouldTrustProxy } from './transport-security.config';
 import { createValidationPipeOptions } from './validation-pipe.config';
 
 async function bootstrap() {
@@ -29,16 +30,16 @@ async function bootstrap() {
   app.use(express.json({ limit: '100kb' }));
   app.use(express.urlencoded({ limit: '100kb', extended: true }));
 
-  app.use(helmet({ contentSecurityPolicy: createContentSecurityPolicy(config) }));
+  if (shouldTrustProxy(config)) {
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+  }
+
+  app.use(helmet({
+    contentSecurityPolicy: createContentSecurityPolicy(config),
+    hsts: createHstsConfig(config),
+  }));
   // HSTS: force HTTPS in production (1 year, includeSubDomains, preload)
   if (config.get<string>('NODE_ENV') === 'production') {
-    app.use(
-      helmet.hsts({
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true,
-      }),
-    );
     // Redirect HTTP to HTTPS
     app.use((req: Request, res: Response, next: NextFunction) => {
       if (req.headers['x-forwarded-proto'] !== 'https') {
