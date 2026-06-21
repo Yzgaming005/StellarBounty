@@ -76,6 +76,24 @@ Read [CONTRIBUTING.md](./CONTRIBUTING.md) for development checks, changelog rule
 2. Fork the repo and create a branch: `git checkout -b feat/your-feature`
 3. Make your changes and open a pull request referencing the issue.
 
+## Architecture
+
+### Circuit Breaker (`apps/backend/src/common/`)
+
+The backend uses a **circuit breaker** pattern for Stellar RPC calls (issue #202). When the Horizon RPC endpoint returns consecutive errors, the breaker **opens** and subsequent calls **fail fast** without touching the network. After a cooldown it transitions to **half-open** for a single probe; success closes the circuit, failure reopens it.
+
+| State | Behaviour |
+|-------|-----------|
+| `closed` | Normal — every call reaches the RPC |
+| `open` | Fail-fast — throws `CircuitBreakerOpenError` immediately |
+| `half_open` | One probe call — decides next state |
+
+**Configuration** (in `.env` or constructor):
+- `CIRCUIT_BREAKER_DISABLED=1` — pass-through mode (dev)
+- `failureThreshold` — errors needed to open (default 5)
+- `failureWindowMs` — sliding window for counting (default 60s)
+- `cooldownMs` — time before probe (default 30s)
+
 ## Database Backup & Restore
 
 Automated database backups run daily via GitHub Actions. See the [Operations Runbook](docs/operations.md) for detailed procedures.

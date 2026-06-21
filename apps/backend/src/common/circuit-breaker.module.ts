@@ -7,6 +7,31 @@ import {
   type CircuitBreakerState,
 } from './circuit-breaker';
 
+/**
+ * CircuitBreakerManager — singleton factory that creates and caches named
+ * circuit breakers. Every breaker with the same `name` shares the same state
+ * across call sites.
+ *
+ * Usage:
+ * ```ts
+ * const mgr = new CircuitBreakerManager({ disabled: process.env.CIRCUIT_BREAKER_DISABLED === '1' });
+ *
+ * // In an RPC call:
+ * const cb = mgr.get('stellar-rpc', { failureThreshold: 5, failureWindowMs: 60_000 });
+ * try {
+ *   return await cb.breaker.execute(() => stellarServer.getAccount(addr));
+ * } catch (err) {
+ *   if (err instanceof CircuitBreakerOpenError) {
+ *     // Circuit is OPEN — use cache / fallback / fail gracefully
+ *   }
+ *   throw err;
+ * }
+ * ```
+ *
+ * When `disabled=true`, breakers use a pass-through mode (threshold = MAX_SAFE_INTEGER)
+ * so the circuit never opens. Handy for dev / E2E tests.
+ */
+
 const LONG_LIVED_BREAKER_OPTIONS: Partial<CircuitBreakerOptions> = {
   failureThreshold: 5,
   failureWindowMs: 60_000,

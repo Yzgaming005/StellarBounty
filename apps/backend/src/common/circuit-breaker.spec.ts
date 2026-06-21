@@ -112,4 +112,37 @@ describe('CircuitBreaker', () => {
     expect(seen).toEqual(expect.arrayContaining(['open', 'half_open', 'closed']));
     unsub();
   });
+
+  it('opens immediately when failureThreshold=0', async () => {
+    const cb = make({ failureThreshold: 0, cooldownMs: 30_000 });
+    await expect(cb.execute(async () => { throw new Error('any'); })).rejects.toThrow();
+    expect(cb.snapshot().state).toBe('open');
+  });
+
+  it('recovers immediately when cooldownMs=0 and probe succeeds', async () => {
+    const cb = make({ failureThreshold: 1, cooldownMs: 0 });
+    await expect(cb.execute(async () => { throw new Error('x'); })).rejects.toThrow();
+    expect(cb.snapshot().state).toBe('open');
+
+    await expect(cb.execute(async () => 'ok')).resolves.toBe('ok');
+    expect(cb.snapshot().state).toBe('closed');
+  });
+
+  it('does not call unsubscribed listeners', async () => {
+    const cb = make({ failureThreshold: 1, cooldownMs: 30_000 });
+    const fn = jest.fn();
+    const unsub = cb.subscribe(fn);
+    unsub();
+
+    await expect(cb.execute(async () => { throw new Error('x'); })).rejects.toThrow();
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('continues working when a subscriber throws', async () => {
+    const cb = make({ failureThreshold: 1, cooldownMs: 30_000 });
+    cb.subscribe(() => { throw new Error('listener crash'); });
+
+    await expect(cb.execute(async () => { throw new Error('x'); })).rejects.toThrow();
+    expect(cb.snapshot().state).toBe('open');
+  });
 });
