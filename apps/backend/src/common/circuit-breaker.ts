@@ -69,7 +69,17 @@ export class CircuitBreaker {
   subscribe(listener: (snap: CircuitBreakerSnapshot) => void): () => void {
     this.listeners.add(listener);
     // Emit the current snapshot immediately so the listener can sync state.
-    listener(this.snapshot());
+    // Wrap so a faulty listener does not break subscribe() — listeners must
+    // not be able to corrupt the breaker's own state.
+    try {
+      listener(this.snapshot());
+    } catch (err) {
+      this.logger.warn?.(
+        `[${this.name}] subscriber threw during initial emit: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
     return () => {
       this.listeners.delete(listener);
     };

@@ -132,10 +132,13 @@ describe('CircuitBreaker', () => {
     const cb = make({ failureThreshold: 1, cooldownMs: 30_000 });
     const fn = jest.fn();
     const unsub = cb.subscribe(fn);
+    // subscribe() emits the current snapshot once for initial state sync,
+    // so capture that baseline and verify execute() adds no further calls.
+    const callsAfterSubscribe = fn.mock.calls.length;
     unsub();
 
     await expect(cb.execute(async () => { throw new Error('x'); })).rejects.toThrow();
-    expect(fn).not.toHaveBeenCalled();
+    expect(fn).toHaveBeenCalledTimes(callsAfterSubscribe);
   });
 
   it('continues working when a subscriber throws', async () => {
