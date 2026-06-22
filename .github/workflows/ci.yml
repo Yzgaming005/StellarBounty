@@ -120,10 +120,14 @@ jobs:
 
       - name: Run npm audit (backend)
         run: npm audit --workspace=apps/backend --audit-level=high
-        continue-on-error: true
+        continue-on-error: false
 
       - name: Run npm audit (frontend)
         run: npm audit --workspace=apps/frontend --audit-level=high
+        continue-on-error: false
+
+      - name: Run npm audit (root)
+        run: npm audit --audit-level=high
         continue-on-error: true
 
       - name: Check for outdated dependencies
@@ -144,6 +148,37 @@ jobs:
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
+
+  cargo-audit:
+    name: Cargo Audit
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/contracts
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Generate Cargo.lock (if missing)
+        run: cargo generate-lockfile
+
+      - name: Run cargo audit
+        run: cargo audit --deny warnings
+        continue-on-error: false
+
+      - name: Check for outdated crates
+        run: |
+          cargo outdated --exit-code 1 2>/dev/null || echo 'Some crates are outdated - run: cargo install cargo-outdated'
 
   e2e:
     name: E2E Tests

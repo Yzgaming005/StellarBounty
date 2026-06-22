@@ -1,0 +1,73 @@
+# Dependabot configuration for StellarBounty
+# Auto-managed: keeps npm + cargo dependencies patched against known CVEs
+# See https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # ── npm ──────────────────────────────────────────────
+  # Root workspace orchestrator (package.json at root)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+
+  # Backend (NestJS)
+  - package-ecosystem: "npm"
+    directory: "/apps/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+      - "backend"
+    commit-message:
+      prefix: "chore(deps-backend)"
+      prefix-development: "chore(deps-dev-backend)"
+
+  # Frontend (Next.js)
+  - package-ecosystem: "npm"
+    directory: "/apps/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "npm"
+      - "frontend"
+    commit-message:
+      prefix: "chore(deps-frontend)"
+      prefix-development: "chore(deps-dev-frontend)"
+
+  # ── Cargo ─────────────────────────────────────────────
+  # Soroban smart contracts
+  - package-ecosystem: "cargo"
+    directory: "/apps/contracts"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Jakarta"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "cargo"
+      - "contracts"
+    commit-message:
+      prefix: "chore(deps-contracts)"
