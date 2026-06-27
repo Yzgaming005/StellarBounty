@@ -90,7 +90,10 @@ impl EscrowContract {
             return Err(ContractError::AlreadyInitialized);
         }
         // Emit event before storage writes
-        env.events().publish((symbol_short!("initialize"), &owner), (&amount, &token_address, &arbitrator));
+        env.events().publish(
+            (symbol_short!("initialize"), &owner),
+            (&amount, &token_address, &arbitrator),
+        );
         env.storage().instance().set(&symbol_short!("OWNER"), &owner);
         env.storage().instance().set(&symbol_short!("AMOUNT"), &amount);
         env.storage().instance().set(&symbol_short!("TOKEN"), &token_address);
@@ -122,7 +125,8 @@ impl EscrowContract {
         );
 
         // Emit event before storage write
-        env.events().publish((symbol_short!("funded"), &owner), (&amount, &token_address));
+        env.events()
+            .publish((symbol_short!("funded"), &owner), (&amount, &token_address));
 
         env.storage()
             .instance()
