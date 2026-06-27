@@ -90,7 +90,10 @@ impl EscrowContract {
             return Err(ContractError::AlreadyInitialized);
         }
         // Emit event before storage writes
-        env.events().publish((symbol_short!("initialize"), &owner), (&amount, &token_address, &arbitrator));
+        env.events().publish(
+            (symbol_short!("initialize"), &owner),
+            (&amount, &token_address, &arbitrator),
+        );
         env.storage().instance().set(&symbol_short!("OWNER"), &owner);
         env.storage().instance().set(&symbol_short!("AMOUNT"), &amount);
         env.storage().instance().set(&symbol_short!("TOKEN"), &token_address);
@@ -122,7 +125,10 @@ impl EscrowContract {
         );
 
         // Emit event before storage write
-        env.events().publish((symbol_short!("funded"), &owner), (&amount, &token_address));
+        env.events().publish(
+            (symbol_short!("funded"), &owner),
+            (&amount, &token_address),
+        );
 
         env.storage()
             .instance()
@@ -136,7 +142,10 @@ impl EscrowContract {
         Self::assert_status(&env, BountyStatus::Funded)?;
 
         // Emit event before storage write
-        env.events().publish((symbol_short!("work_started"), &contributor), ());
+        env.events().publish(
+            (symbol_short!("work_started"), &contributor),
+            (),
+        );
 
         env.storage().instance().set(&symbol_short!("CONTRIB"), &contributor);
         env.storage()
@@ -152,7 +161,10 @@ impl EscrowContract {
         Self::assert_status(&env, BountyStatus::InProgress)?;
 
         // Emit event before storage write
-        env.events().publish((symbol_short!("work_submitted"), &contributor), ());
+        env.events().publish(
+            (symbol_short!("work_submitted"), &contributor),
+            (),
+        );
 
         env.storage()
             .instance()
@@ -167,7 +179,10 @@ impl EscrowContract {
         Self::assert_status(&env, BountyStatus::UnderReview)?;
 
         // Emit event before queuing
-        env.events().publish((symbol_short!("approved"), &owner), ());
+        env.events().publish(
+            (symbol_short!("approved"), &owner),
+            (),
+        );
 
         Self::queue_operation(&env, &owner, TimelockOperation::Approve)
     }
@@ -259,7 +274,10 @@ impl EscrowContract {
             .set(&symbol_short!("STATUS"), &BountyStatus::Disputed);
         Self::clear_pending_operation(&env);
 
-        env.events().publish((symbol_short!("dispute"), caller), ());
+        env.events().publish(
+            (symbol_short!("dispute"), caller),
+            (),
+        );
         Ok(())
     }
 
@@ -300,7 +318,10 @@ impl EscrowContract {
             .set(&symbol_short!("STATUS"), &BountyStatus::Completed);
         Self::clear_pending_operation(&env);
 
-        env.events().publish((symbol_short!("resolve"), winner), ());
+        env.events().publish(
+            (symbol_short!("resolve"), winner),
+            (),
+        );
         env.events()
             .publish((symbol_short!("execop"), symbol_short!("resolve")), ());
         Ok(())
@@ -318,7 +339,10 @@ impl EscrowContract {
         }
 
         Self::clear_pending_operation(&env);
-        env.events().publish((symbol_short!("cancelop"), caller), ());
+        env.events().publish(
+            (symbol_short!("cancelop"), caller),
+            (),
+        );
         Ok(())
     }
 
