@@ -156,8 +156,7 @@ impl EscrowContract {
         Self::assert_status(&env, BountyStatus::InProgress)?;
 
         // Emit event before storage write
-        env.events()
-            .publish((symbol_short!("w_submit"), &contributor), ());
+        env.events().publish((symbol_short!("w_submit"), &contributor), ());
 
         env.storage()
             .instance()
