@@ -156,7 +156,8 @@ impl EscrowContract {
         Self::assert_status(&env, BountyStatus::InProgress)?;
 
         // Emit event before storage write
-        env.events().publish((symbol_short!("work_submitted"), &contributor), ());
+        env.events()
+            .publish((symbol_short!("work_submitted"), &contributor), ());
 
         env.storage()
             .instance()
@@ -210,11 +211,7 @@ impl EscrowContract {
         }
 
         // Emit event before queuing
-        env.events()
-            .publish(
-                (symbol_short!("cancelled"), &owner),
-                (status.clone(),),
-            );
+        env.events().publish((symbol_short!("cancelled"), &owner), (status.clone(),));
 
         Self::queue_operation(&env, &owner, TimelockOperation::Cancel)
     }
