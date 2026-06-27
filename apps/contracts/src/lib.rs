@@ -91,7 +91,7 @@ impl EscrowContract {
         }
         // Emit event before storage writes
         env.events().publish(
-            (symbol_short!("initialize"), &owner),
+            (symbol_short!("init"), &owner),
             (amount, &token_address, &arbitrator),
         );
         env.storage().instance().set(&symbol_short!("OWNER"), &owner);
@@ -140,7 +140,7 @@ impl EscrowContract {
         Self::assert_status(&env, BountyStatus::Funded)?;
 
         // Emit event before storage write
-        env.events().publish((symbol_short!("work_started"), &contributor), ());
+        env.events().publish((symbol_short!("w_started"), &contributor), ());
 
         env.storage().instance().set(&symbol_short!("CONTRIB"), &contributor);
         env.storage()
@@ -157,7 +157,7 @@ impl EscrowContract {
 
         // Emit event before storage write
         env.events()
-            .publish((symbol_short!("work_submitted"), &contributor), ());
+            .publish((symbol_short!("w_submit"), &contributor), ());
 
         env.storage()
             .instance()
