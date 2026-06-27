@@ -206,7 +206,8 @@ impl EscrowContract {
         }
 
         // Emit event before queuing
-        env.events().publish((symbol_short!("cancelled"), &owner), (status.clone(),));
+        env.events()
+            .publish((symbol_short!("cancelled"), &owner), (status.clone(),));
 
         Self::queue_operation(&env, &owner, TimelockOperation::Cancel)
     }
