@@ -92,7 +92,7 @@ impl EscrowContract {
         // Emit event before storage writes
         env.events().publish(
             (symbol_short!("initialize"), &owner),
-            (&amount, &token_address, &arbitrator),
+            (amount, &token_address, &arbitrator),
         );
         env.storage().instance().set(&symbol_short!("OWNER"), &owner);
         env.storage().instance().set(&symbol_short!("AMOUNT"), &amount);
@@ -126,7 +126,7 @@ impl EscrowContract {
 
         // Emit event before storage write
         env.events()
-            .publish((symbol_short!("funded"), &owner), (&amount, &token_address));
+            .publish((symbol_short!("funded"), &owner), (amount, &token_address));
 
         env.storage()
             .instance()
