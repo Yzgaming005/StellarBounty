@@ -102,7 +102,7 @@ jobs:
             );
             INSERT INTO submissions (bounty_id, submitter, content) VALUES
               (1, 'GA-test-account-1', 'My submission content');
-SQL
+          SQL
 
           chmod +x scripts/backup-db.sh
           mkdir -p backups
