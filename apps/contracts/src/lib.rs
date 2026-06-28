@@ -89,6 +89,9 @@ impl EscrowContract {
         if env.storage().instance().has(&symbol_short!("STATUS")) {
             return Err(ContractError::AlreadyInitialized);
         }
+        // Emit event before storage writes
+        env.events()
+            .publish((symbol_short!("init"), &owner), (amount, &token_address, &arbitrator));
         env.storage().instance().set(&symbol_short!("OWNER"), &owner);
         env.storage().instance().set(&symbol_short!("AMOUNT"), &amount);
         env.storage().instance().set(&symbol_short!("TOKEN"), &token_address);
@@ -119,6 +122,10 @@ impl EscrowContract {
             &amount,
         );
 
+        // Emit event before storage write
+        env.events()
+            .publish((symbol_short!("funded"), &owner), (amount, &token_address));
+
         env.storage()
             .instance()
             .set(&symbol_short!("STATUS"), &BountyStatus::Funded);
@@ -129,6 +136,10 @@ impl EscrowContract {
     pub fn start_work(env: Env, contributor: Address) -> Result<(), ContractError> {
         contributor.require_auth();
         Self::assert_status(&env, BountyStatus::Funded)?;
+
+        // Emit event before storage write
+        env.events().publish((symbol_short!("w_started"), &contributor), ());
+
         env.storage().instance().set(&symbol_short!("CONTRIB"), &contributor);
         env.storage()
             .instance()
@@ -141,6 +152,10 @@ impl EscrowContract {
         contributor.require_auth();
         Self::assert_contributor(&env, &contributor)?;
         Self::assert_status(&env, BountyStatus::InProgress)?;
+
+        // Emit event before storage write
+        env.events().publish((symbol_short!("w_submit"), &contributor), ());
+
         env.storage()
             .instance()
             .set(&symbol_short!("STATUS"), &BountyStatus::UnderReview);
@@ -152,6 +167,9 @@ impl EscrowContract {
         owner.require_auth();
         Self::assert_owner(&env, &owner)?;
         Self::assert_status(&env, BountyStatus::UnderReview)?;
+
+        // Emit event before queuing
+        env.events().publish((symbol_short!("approved"), &owner), ());
 
         Self::queue_operation(&env, &owner, TimelockOperation::Approve)
     }
@@ -188,6 +206,10 @@ impl EscrowContract {
         if status != BountyStatus::Created && status != BountyStatus::Funded {
             return Err(ContractError::InvalidStatus);
         }
+
+        // Emit event before queuing
+        env.events()
+            .publish((symbol_short!("cancelled"), &owner), (status.clone(),));
 
         Self::queue_operation(&env, &owner, TimelockOperation::Cancel)
     }
